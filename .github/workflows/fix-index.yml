@@ -1,4 +1,4 @@
-name: Descobrir Caminho Real FTP
+name: Descobrir Caminho HTTP
 
 on: workflow_dispatch
 
@@ -8,26 +8,42 @@ jobs:
     steps:
       - name: Install lftp
         run: sudo apt-get install -y lftp
-      - name: PWD e teste de upload
+      - name: Upload em varios lugares
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          SITE_URL: https://bmsystem.app
         run: |
           TS=$(date +%s)
-          echo "=== Teste de caminho FTP ==="
+          echo "=== Upload de teste em varios caminhos ==="
+          
+          # Criar arquivo unico
+          echo "PATH_TEST_$TS" > /tmp/test_$TS.txt
+          
+          # Lista de caminhos para testar
+          declare -a paths=(
+            "/modulos/sst/treinamentos"
+            "/modulos/fabrica_software"
+            "/modulos"
+            "/"
+            "/public_html/modulos/sst/treinamentos"
+            "/www/modulos/sst/treinamentos"
+          )
+          
+          for path in "${paths[@]}"; do
+            echo "--- Upload para: $path ---"
+            lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; cd $path; put /tmp/test_$TS.txt; bye" $SFTP_HOST 2>&1 | tail -3
+          done
+      - name: Testar URLs
+        env:
+          SITE_URL: https://bmsystem.app
+        run: |
+          TS=$(ls -t /tmp/test_*.txt | head -1 | xargs basename | sed 's/test_//;s/.txt//')
           echo "Timestamp: $TS"
           
-          # Criar arquivo de teste
-          echo "TESTE_PATH_$TS" > /tmp/path_test_$TS.txt
-          
-          # Tentar varios caminhos comuns
-          for path in "." "/" "/modulos" "/public_html/modulos" "/www/modulos" "/home/bmsystem/modulos" "/home/bmsystem/public_html/modulos" "/var/www/html/modulos" "/var/www/modulos"; do
-            echo ""
-            echo "=== Tentando: $path ==="
-            lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; cd $path; put /tmp/path_test_$TS.txt; ls; bye" $SFTP_HOST 2>&1 | head -20
+          echo "=== Testando URLs ==="
+          for url_path in "/modulos/sst/treinamentos/test_$TS.txt" "/modulos/sst/treinamentos/index.php" "/modulos/fabrica_software/test_$TS.txt" "/test_$TS.txt" "/modulos/test_$TS.txt"; do
+            echo "--- Testando: $url_path ---"
+            curl -s -o /dev/null -w "Status: %{http_code} | Tamanho: %{size_download}\n" "$SITE_URL$url_path"
           done
-          
-          echo ""
-          echo "=== Listando raiz para descobrir onde estamos ==="
-          lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; ls -la; pwd; bye" $SFTP_HOST 2>&1
