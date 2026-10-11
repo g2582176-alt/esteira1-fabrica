@@ -1,4 +1,4 @@
-name: Esteira 1 - Multi-Deploy v4
+name: Esteira 1 - Multi-Deploy v5 (AUTO)
 
 on:
   schedule:
@@ -15,20 +15,23 @@ jobs:
     steps:
       - name: Checkout publico
         uses: actions/checkout@v4
-        
+      
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-        
-      - name: Detector
+      
+      - name: Instalar deps
+        run: npm install 2>/dev/null || true
+      
+      - name: Detector de modulos faltantes
         run: node 1_pesquisador.js || echo OK
         continue-on-error: true
-        
-      - name: Gerador
+      
+      - name: Gerador de modulos
         run: node 3_programador.js || echo OK
         continue-on-error: true
-        
+      
       - name: Commit no BM-Automacao
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -38,20 +41,31 @@ jobs:
           git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/bm-auto 2>/dev/null || true
           if [ -d /tmp/bm-auto ]; then
             cd /tmp/bm-auto
-            # Garante estrutura de diretorios correta
+            rm -rf esteira_1_fabrica_software/output
             mkdir -p esteira_1_fabrica_software/output
-            mkdir -p esteira_1_fabrica_software/logs
-            # Copia output
             cp -r ../output/* esteira_1_fabrica_software/output/ 2>/dev/null || true
             git add -A
-            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo - $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git diff --staged --quiet || git commit -m "esteira: gerado em $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main || true
+            echo "Arquivos commitados"
           fi
         continue-on-error: true
-        
-      - name: Webhook para deploy
+      
+      - name: Webhook para deploy no servidor
         if: always()
         run: |
-          echo "Workflow concluído"
-          echo "Status: ${{ job.status }}"
-          echo "Proxima execucao automatica: 02:00, 08:00, 14:00, 20:00 UTC"
+          echo "Disparando webhook de deploy..."
+          echo "=== STATUS ==="
+          curl -s "https://bmsystem.app/webhook.php?action=status&token=esteira1-2026-secret-deploy" -m 30 || echo "Webhook nao respondeu"
+          echo ""
+          echo "=== FULL DEPLOY ==="
+          curl -s "https://bmsystem.app/webhook.php?action=full-deploy&token=esteira1-2026-secret-deploy" -m 120 || echo "Deploy falhou"
+        continue-on-error: true
+      
+      - name: Resultado
+        if: always()
+        run: |
+          echo "==========================================="
+          echo "ESTEIRA 1: ${{ job.status }}"
+          echo "Proxima execucao: 02:00, 08:00, 14:00, 20:00 UTC"
+          echo "==========================================="
