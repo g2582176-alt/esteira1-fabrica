@@ -1,27 +1,41 @@
-name: Fix Index PHP
+name: Test Upload
 
 on: workflow_dispatch
 
 jobs:
-  fix:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Test FTP
+      - name: Listar diretorio
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          echo "Host: $SFTP_HOST"
-          echo "User: $SFTP_USER"
-          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/modulos/sst/treinamentos/" 2>&1 | head -20
-      - name: Upload PHP
+          echo "=== Listando /modulos/sst/treinamentos/ ==="
+          curl --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/modulos/sst/treinamentos/" 2>&1
+          echo ""
+          echo "=== Listando / ==="
+          curl --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/" 2>&1 | head -30
+      - name: Upload teste novo arquivo
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          printf '<?php echo "Treinamentos OK - " . date("Y-m-d H:i:s"); ?>' > /tmp/novo.php
-          cat /tmp/novo.php
+          echo "TESTE_$(date +%s)" > /tmp/teste_$(date +%s).txt
+          TS=$(date +%s)
+          echo "TESTE_$TS" > /tmp/teste_$TS.txt
+          echo "Arquivo: /tmp/teste_$TS.txt"
+          cat /tmp/teste_$TS.txt
           echo "---"
-          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/novo.php "ftp://$SFTP_HOST/modulos/sst/treinamentos/index.php" 2>&1 | head -10
+          echo "Upload para /modulos/sst/treinamentos/teste_$TS.txt"
+          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/teste_$TS.txt "ftp://$SFTP_HOST/modulos/sst/treinamentos/teste_$TS.txt" 2>&1 | head -20
+      - name: Upload em raiz
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        run: |
+          echo "RAIZ_$(date +%s)" > /tmp/raiz.txt
+          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/raiz.txt "ftp://$SFTP_HOST/raiz_$(date +%s).txt" 2>&1 | head -10
