@@ -6,42 +6,22 @@ jobs:
   fix:
     runs-on: ubuntu-latest
     steps:
-      - name: Test FTP com curl
+      - name: Test FTP
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          echo "=== Testando conexao FTP ==="
           echo "Host: $SFTP_HOST"
           echo "User: $SFTP_USER"
-          
-          # Testar listar
-          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/modulos/sst/treinamentos/" 2>&1 | head -30
-          
-      - name: Upload via curl FTP
+          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/modulos/sst/treinamentos/" 2>&1 | head -20
+      - name: Upload PHP
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          # Criar arquivo de teste
-          cat > /tmp/novo_index.php << 'PHPEOF'
-<?php
-echo "Modulo Treinamentos - CONCLUIDO!
-";
-echo "Atualizado em: " . date("Y-m-d H:i:s") . "
-";
-echo "Gerado pela Esteira 1 - Fabrica de Software
-";
-?>
-PHPEOF
-          
-          echo "=== Conteudo do arquivo ==="
-          cat /tmp/novo_index.php
-          
-          echo "=== Upload via curl ==="
-          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/novo_index.php "ftp://$SFTP_HOST/modulos/sst/treinamentos/index.php" 2>&1 | head -20
-          
-          echo "=== Verificar ==="
-          curl --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/modulos/sst/treinamentos/index.php" 2>&1 | head -10
+          printf '<?php echo "Treinamentos OK - " . date("Y-m-d H:i:s"); ?>' > /tmp/novo.php
+          cat /tmp/novo.php
+          echo "---"
+          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/novo.php "ftp://$SFTP_HOST/modulos/sst/treinamentos/index.php" 2>&1 | head -10
