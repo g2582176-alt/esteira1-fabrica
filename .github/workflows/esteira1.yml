@@ -24,79 +24,27 @@ jobs:
       - name: Gerador
         run: node 3_programador.js || echo OK
         continue-on-error: true
-      - name: Setup git
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git config --global user.email esteira1@bot
-          git config --global user.name Esteira1Bot
-      - name: Push BM-Automacao
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/bm-auto 2>/dev/null || true
-          if [ -d /tmp/bm-auto ]; then
-            mkdir -p /tmp/bm-auto/esteira_1_fabrica_software/output
-            cp -r output/* /tmp/bm-auto/esteira_1_fabrica_software/output/ 2>/dev/null || true
-            cd /tmp/bm-auto
-            git add -A
-            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main
-          fi
-      - name: Push on-brigadista
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/on-brigadista-app.git /tmp/bri 2>/dev/null || true
-          if [ -d /tmp/bri ]; then
-            mkdir -p /tmp/bri/esteira_1_fabrica_software/output
-            cp -r output/* /tmp/bri/esteira_1_fabrica_software/output/ 2>/dev/null || true
-            cd /tmp/bri
-            git add -A
-            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/on-brigadista-app.git main
-          fi
-      - name: Push bm-system-app
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/bm-system-app.git /tmp/bmsys 2>/dev/null || true
-          if [ -d /tmp/bmsys ]; then
-            mkdir -p /tmp/bmsys/esteira_1_fabrica_software/output
-            cp -r output/* /tmp/bmsys/esteira_1_fabrica_software/output/ 2>/dev/null || true
-            cd /tmp/bmsys
-            git add -A
-            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/bm-system-app.git main
-          fi
-      - name: Push gestaodeterceiros
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/gestaodeterceiros.git /tmp/gt 2>/dev/null || true
-          if [ -d /tmp/gt ]; then
-            mkdir -p /tmp/gt/esteira_1_fabrica_software/output
-            cp -r output/* /tmp/gt/esteira_1_fabrica_software/output/ 2>/dev/null || true
-            cd /tmp/gt
-            git add -A
-            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/gestaodeterceiros.git main
-          fi
-      - name: Install lftp
-        run: sudo apt-get install -y lftp
-      - name: Deploy SFTP sobrescrevendo
+      - name: Test SFTP
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          # Para cada modulo gerado, faz deploy sobrescrevendo
+          echo "Testando conexao com $SFTP_HOST..."
+          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/" 2>&1 | head -20
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+      - name: Deploy SFTP
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        run: |
           for dir in output/codigo_*; do
             if [ -d "$dir" ]; then
               nome=$(basename $dir | sed "s/codigo_//")
               echo "Deploying $nome..."
-              lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; mirror -R --overwrite --delete $dir/ /modulos/sst/$nome/; bye" $SFTP_HOST
-              echo "OK $nome"
+              lftp -d -u "$SFTP_USER","$SFTP_PASSWORD" -e "mirror -R --overwrite $dir/ /modulos/sst/$nome/; bye" $SFTP_HOST 2>&1 || echo "LFTP failed"
             fi
           done
       - name: Done
