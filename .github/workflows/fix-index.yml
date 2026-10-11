@@ -1,4 +1,4 @@
-name: Descobrir Caminho
+name: Testar FTP
 
 on: workflow_dispatch
 
@@ -6,23 +6,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Listar raiz FTP
+      - name: Listar com PASV
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          echo "=== RAIZ FTP ==="
-          curl --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/" 2>&1
+          echo "=== Listar raiz com PASV ==="
+          curl --ftp-pasv --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/" 2>&1
           echo ""
-          echo "=== PWD (diretório atual) ==="
-          curl --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/" 2>&1
-      - name: Testar modulos/sst
+          echo "=== Listar com PASV e --list-only ==="
+          curl --list-only --ftp-pasv --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/" 2>&1
+      - name: NLST
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          echo "=== Tentar criar arquivo teste no raiz ==="
-          echo "TESTE_$(date +%s)" > /tmp/teste.txt
-          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/teste.txt "ftp://$SFTP_HOST/teste_$(date +%s).txt" 2>&1 | head -20
+          echo "=== NLST raiz ==="
+          curl --ftp-pasv --user "$SFTP_USER:$SFTP_PASSWORD" -l "ftp://$SFTP_HOST/" 2>&1
