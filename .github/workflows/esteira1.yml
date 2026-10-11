@@ -1,4 +1,4 @@
-name: Esteira 1
+name: Esteira 1 - Multi-Deploy
 
 on:
   schedule:
@@ -30,26 +30,63 @@ jobs:
         run: |
           git config --global user.email esteira1@bot
           git config --global user.name Esteira1Bot
-          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/privado
-      - name: Copiar output
-        run: |
-          mkdir -p /tmp/privado/esteira_1_fabrica_software/output
-          cp -r output/* /tmp/privado/esteira_1_fabrica_software/output/ 2>/dev/null || true
-          cd /tmp/privado
-          git add -A
-          git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-      - name: Push para privado
+      - name: Push BM-Automacao
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          cd /tmp/privado
-          git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main
-      - name: Setup SSH key
+          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/bm-auto 2>/dev/null || true
+          if [ -d /tmp/bm-auto ]; then
+            mkdir -p /tmp/bm-auto/esteira_1_fabrica_software/output
+            cp -r output/* /tmp/bm-auto/esteira_1_fabrica_software/output/ 2>/dev/null || true
+            cd /tmp/bm-auto
+            git add -A
+            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
+            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main
+          fi
+      - name: Push on-brigadista
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/on-brigadista-app.git /tmp/bri 2>/dev/null || true
+          if [ -d /tmp/bri ]; then
+            mkdir -p /tmp/bri/esteira_1_fabrica_software/output
+            cp -r output/* /tmp/bri/esteira_1_fabrica_software/output/ 2>/dev/null || true
+            cd /tmp/bri
+            git add -A
+            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
+            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/on-brigadista-app.git main
+          fi
+      - name: Push bm-system-app
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/bm-system-app.git /tmp/bmsys 2>/dev/null || true
+          if [ -d /tmp/bmsys ]; then
+            mkdir -p /tmp/bmsys/esteira_1_fabrica_software/output
+            cp -r output/* /tmp/bmsys/esteira_1_fabrica_software/output/ 2>/dev/null || true
+            cd /tmp/bmsys
+            git add -A
+            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
+            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/bm-system-app.git main
+          fi
+      - name: Push gestaodeterceiros
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/gestaodeterceiros.git /tmp/gt 2>/dev/null || true
+          if [ -d /tmp/gt ]; then
+            mkdir -p /tmp/gt/esteira_1_fabrica_software/output
+            cp -r output/* /tmp/gt/esteira_1_fabrica_software/output/ 2>/dev/null || true
+            cd /tmp/gt
+            git add -A
+            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
+            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/gestaodeterceiros.git main
+          fi
+      - name: Install SSH tools
         env:
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
-        run: |
-          sudo apt-get install -y sshpass
-      - name: Deploy SFTP
+        run: sudo apt-get install -y sshpass
+      - name: Deploy SFTP principal
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
@@ -59,7 +96,7 @@ jobs:
             if [ -d "$dir" ]; then
               nome=$(basename $dir | sed "s/codigo_//")
               echo "Deploying $nome..."
-              sshpass -p "$SFTP_PASSWORD" scp -o StrictHostKeyChecking=no -r "$dir" "$SFTP_USER@$SFTP_HOST:/modulos/sst/$nome/" 2>/dev/null || echo "SCP failed for $nome"
+              sshpass -p "$SFTP_PASSWORD" scp -o StrictHostKeyChecking=no -r "$dir" "$SFTP_USER@$SFTP_HOST:/modulos/sst/$nome/" 2>&1 || echo "SCP failed for $nome"
             fi
           done
       - name: Done
