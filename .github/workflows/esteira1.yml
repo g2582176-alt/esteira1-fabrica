@@ -1,4 +1,4 @@
-name: Esteira 1 - Multi-Deploy v5 (AUTO)
+name: Esteira 1 - Auto Deploy v6
 
 on:
   schedule:
@@ -13,25 +13,25 @@ jobs:
     timeout-minutes: 30
     
     steps:
-      - name: Checkout publico
+      - name: Checkout
         uses: actions/checkout@v4
-      
+        
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      
+          
       - name: Instalar deps
         run: npm install 2>/dev/null || true
-      
-      - name: Detector de modulos faltantes
+        
+      - name: Detector de modulos
         run: node 1_pesquisador.js || echo OK
         continue-on-error: true
-      
-      - name: Gerador de modulos
+        
+      - name: Gerador de codigo
         run: node 3_programador.js || echo OK
         continue-on-error: true
-      
+        
       - name: Commit no BM-Automacao
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -45,27 +45,33 @@ jobs:
             mkdir -p esteira_1_fabrica_software/output
             cp -r ../output/* esteira_1_fabrica_software/output/ 2>/dev/null || true
             git add -A
-            git diff --staged --quiet || git commit -m "esteira: gerado em $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git diff --staged --quiet || git commit -m "esteira: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main || true
-            echo "Arquivos commitados"
+            echo "Commit feito"
           fi
         continue-on-error: true
       
-      - name: Webhook para deploy no servidor
+      - name: Deploy automatico no servidor
         if: always()
         run: |
-          echo "Disparando webhook de deploy..."
-          echo "=== STATUS ==="
-          curl -s "https://bmsystem.app/webhook.php?action=status&token=esteira1-2026-secret-deploy" -m 30 || echo "Webhook nao respondeu"
+          echo "=== DEPLOY NO SERVIDOR ==="
+          
+          # Deploy treinamentos
+          echo "1. Deploy treinamentos..."
+          curl -s "https://bmsystem.app/webhook.php?action=deploy-treinamentos&token=esteira1-2026-secret-deploy" -m 60 || echo "deploy falhou"
           echo ""
-          echo "=== FULL DEPLOY ==="
-          curl -s "https://bmsystem.app/webhook.php?action=full-deploy&token=esteira1-2026-secret-deploy" -m 120 || echo "Deploy falhou"
+          
+          # Listar modulos
+          echo "2. Status..."
+          curl -s "https://bmsystem.app/webhook.php?action=status&token=esteira1-2026-secret-deploy" -m 30 || echo "status falhou"
+          echo ""
+          
         continue-on-error: true
       
       - name: Resultado
         if: always()
         run: |
-          echo "==========================================="
+          echo "============================="
           echo "ESTEIRA 1: ${{ job.status }}"
-          echo "Proxima execucao: 02:00, 08:00, 14:00, 20:00 UTC"
-          echo "==========================================="
+          echo "Proxima: 02:00, 08:00, 14:00, 20:00 UTC"
+          echo "============================="
