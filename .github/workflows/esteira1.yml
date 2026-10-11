@@ -41,8 +41,9 @@ jobs:
             cd /tmp/bm-auto
             git add -A
             git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main
+            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main || true
           fi
+        continue-on-error: true
       - name: Push on-brigadista
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -54,8 +55,9 @@ jobs:
             cd /tmp/bri
             git add -A
             git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/on-brigadista-app.git main
+            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/on-brigadista-app.git main || true
           fi
+        continue-on-error: true
       - name: Push bm-system-app
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -67,8 +69,9 @@ jobs:
             cd /tmp/bmsys
             git add -A
             git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/bm-system-app.git main
+            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/bm-system-app.git main || true
           fi
+        continue-on-error: true
       - name: Push gestaodeterceiros
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -80,8 +83,9 @@ jobs:
             cd /tmp/gt
             git add -A
             git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/gestaodeterceiros.git main
+            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/gestaodeterceiros.git main || true
           fi
+        continue-on-error: true
       - name: Install lftp
         run: sudo apt-get install -y lftp
       - name: Deploy SFTP com SSL ignore
@@ -94,7 +98,7 @@ jobs:
             if [ -d "$dir" ]; then
               nome=$(basename $dir | sed "s/codigo_//")
               echo "Deploying $nome..."
-              lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; mirror -R --overwrite --delete $dir/ /modulos/sst/$nome/; bye" $SFTP_HOST 2>&1
+              lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; mirror -R --overwrite --delete $dir/ /modulos/sst/$nome/; bye" $SFTP_HOST 2>&1 || echo "LFTP failed for $nome"
               echo "OK $nome"
             fi
           done
