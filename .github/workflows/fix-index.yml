@@ -1,4 +1,4 @@
-name: Test Upload
+name: Descobrir Caminho
 
 on: workflow_dispatch
 
@@ -6,36 +6,23 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Listar diretorio
+      - name: Listar raiz FTP
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          echo "=== Listando /modulos/sst/treinamentos/ ==="
-          curl --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/modulos/sst/treinamentos/" 2>&1
+          echo "=== RAIZ FTP ==="
+          curl --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/" 2>&1
           echo ""
-          echo "=== Listando / ==="
-          curl --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/" 2>&1 | head -30
-      - name: Upload teste novo arquivo
+          echo "=== PWD (diretório atual) ==="
+          curl --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/" 2>&1
+      - name: Testar modulos/sst
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          echo "TESTE_$(date +%s)" > /tmp/teste_$(date +%s).txt
-          TS=$(date +%s)
-          echo "TESTE_$TS" > /tmp/teste_$TS.txt
-          echo "Arquivo: /tmp/teste_$TS.txt"
-          cat /tmp/teste_$TS.txt
-          echo "---"
-          echo "Upload para /modulos/sst/treinamentos/teste_$TS.txt"
-          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/teste_$TS.txt "ftp://$SFTP_HOST/modulos/sst/treinamentos/teste_$TS.txt" 2>&1 | head -20
-      - name: Upload em raiz
-        env:
-          SFTP_HOST: ${{ secrets.SFTP_HOST }}
-          SFTP_USER: ${{ secrets.SFTP_USER }}
-          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
-        run: |
-          echo "RAIZ_$(date +%s)" > /tmp/raiz.txt
-          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/raiz.txt "ftp://$SFTP_HOST/raiz_$(date +%s).txt" 2>&1 | head -10
+          echo "=== Tentar criar arquivo teste no raiz ==="
+          echo "TESTE_$(date +%s)" > /tmp/teste.txt
+          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/teste.txt "ftp://$SFTP_HOST/teste_$(date +%s).txt" 2>&1 | head -20
