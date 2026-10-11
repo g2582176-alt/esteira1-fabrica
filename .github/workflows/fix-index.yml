@@ -6,18 +6,42 @@ jobs:
   fix:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install lftp
-        run: sudo apt-get install -y lftp
-      - name: Sobrescrever index.php
+      - name: Test FTP com curl
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
-          # Verificar conexao
-          lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "ls /modulos/sst/treinamentos/" $SFTP_HOST
-          echo "---"
-          echo '<?php echo "Modulo Treinamentos - CONCLUIDO em " . date("Y-m-d H:i:s") . " - Gerado pela Esteira 1"; ?>' > /tmp/new_index.php
-          lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "put /tmp/new_index.php -o /modulos/sst/treinamentos/index.php" $SFTP_HOST
-          echo "Upload OK"
+          echo "=== Testando conexao FTP ==="
+          echo "Host: $SFTP_HOST"
+          echo "User: $SFTP_USER"
+          
+          # Testar listar
+          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/modulos/sst/treinamentos/" 2>&1 | head -30
+          
+      - name: Upload via curl FTP
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        run: |
+          # Criar arquivo de teste
+          cat > /tmp/novo_index.php << 'PHPEOF'
+<?php
+echo "Modulo Treinamentos - CONCLUIDO!
+";
+echo "Atualizado em: " . date("Y-m-d H:i:s") . "
+";
+echo "Gerado pela Esteira 1 - Fabrica de Software
+";
+?>
+PHPEOF
+          
+          echo "=== Conteudo do arquivo ==="
+          cat /tmp/novo_index.php
+          
+          echo "=== Upload via curl ==="
+          curl -v --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/novo_index.php "ftp://$SFTP_HOST/modulos/sst/treinamentos/index.php" 2>&1 | head -20
+          
+          echo "=== Verificar ==="
+          curl --user "$SFTP_USER:$SFTP_PASSWORD" "ftp://$SFTP_HOST/modulos/sst/treinamentos/index.php" 2>&1 | head -10
