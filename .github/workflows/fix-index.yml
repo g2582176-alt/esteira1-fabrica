@@ -1,4 +1,4 @@
-name: Descobrir Caminho Real
+name: Descobrir Caminho Real FTP
 
 on: workflow_dispatch
 
@@ -6,22 +6,28 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Testar caminhos comuns
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+      - name: PWD e teste de upload
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
           TS=$(date +%s)
-          echo "teste_$TS" > /tmp/teste_$TS.txt
-          echo "Tentando /public_html/modulos/sst/treinamentos/index.php ..."
-          curl --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/teste_$TS.txt "ftp://$SFTP_HOST/public_html/modulos/sst/treinamentos/index.php" 2>&1 | tail -5
-          echo "---"
-          echo "Tentando /www/modulos/sst/treinamentos/index.php ..."
-          curl --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/teste_$TS.txt "ftp://$SFTP_HOST/www/modulos/sst/treinamentos/index.php" 2>&1 | tail -5
-          echo "---"
-          echo "Tentando raiz /modulos/sst/treinamentos/index.php ..."
-          curl --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/teste_$TS.txt "ftp://$SFTP_HOST/modulos/sst/treinamentos/index.php" 2>&1 | tail -5
-          echo "---"
-          echo "Tentando /home/bmsystem/modulos/sst/treinamentos/index.php ..."
-          curl --user "$SFTP_USER:$SFTP_PASSWORD" -T /tmp/teste_$TS.txt "ftp://$SFTP_HOST/home/bmsystem/modulos/sst/treinamentos/index.php" 2>&1 | tail -5
+          echo "=== Teste de caminho FTP ==="
+          echo "Timestamp: $TS"
+          
+          # Criar arquivo de teste
+          echo "TESTE_PATH_$TS" > /tmp/path_test_$TS.txt
+          
+          # Tentar varios caminhos comuns
+          for path in "." "/" "/modulos" "/public_html/modulos" "/www/modulos" "/home/bmsystem/modulos" "/home/bmsystem/public_html/modulos" "/var/www/html/modulos" "/var/www/modulos"; do
+            echo ""
+            echo "=== Tentando: $path ==="
+            lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; cd $path; put /tmp/path_test_$TS.txt; ls; bye" $SFTP_HOST 2>&1 | head -20
+          done
+          
+          echo ""
+          echo "=== Listando raiz para descobrir onde estamos ==="
+          lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; ls -la; pwd; bye" $SFTP_HOST 2>&1
