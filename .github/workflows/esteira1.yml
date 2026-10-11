@@ -7,19 +7,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   esteira1:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
+      - name: Checkout publico
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_PAT }}
-          fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -30,14 +24,26 @@ jobs:
       - name: Gerador
         run: node 3_programador.js || echo OK
         continue-on-error: true
-      - name: Push
+      - name: Setup git
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          git config user.email esteira1@bot
-          git config user.name Esteira1Bot
-          git remote add privado https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git
-          git push privado HEAD:main --force
+          git config --global user.email esteira1@bot
+          git config --global user.name Esteira1Bot
+          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/privado
+      - name: Copiar output
+        run: |
+          mkdir -p /tmp/privado/esteira_1_fabrica_software/output
+          cp -r output/* /tmp/privado/esteira_1_fabrica_software/output/ 2>/dev/null || true
+          cd /tmp/privado
+          git add -A
+          git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
+      - name: Push para privado
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          cd /tmp/privado
+          git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main
       - name: Done
         if: always()
         run: echo ESTEIRA_DONE
