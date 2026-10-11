@@ -1,4 +1,4 @@
-name: Esteira 1 - Multi-Deploy
+name: Esteira 1 - Multi-Deploy v2
 
 on:
   schedule:
@@ -44,51 +44,9 @@ jobs:
             git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main || true
           fi
         continue-on-error: true
-      - name: Push on-brigadista
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/on-brigadista-app.git /tmp/bri 2>/dev/null || true
-          if [ -d /tmp/bri ]; then
-            mkdir -p /tmp/bri/esteira_1_fabrica_software/output
-            cp -r output/* /tmp/bri/esteira_1_fabrica_software/output/ 2>/dev/null || true
-            cd /tmp/bri
-            git add -A
-            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/on-brigadista-app.git main || true
-          fi
-        continue-on-error: true
-      - name: Push bm-system-app
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/bm-system-app.git /tmp/bmsys 2>/dev/null || true
-          if [ -d /tmp/bmsys ]; then
-            mkdir -p /tmp/bmsys/esteira_1_fabrica_software/output
-            cp -r output/* /tmp/bmsys/esteira_1_fabrica_software/output/ 2>/dev/null || true
-            cd /tmp/bmsys
-            git add -A
-            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/bm-system-app.git main || true
-          fi
-        continue-on-error: true
-      - name: Push gestaodeterceiros
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
-        run: |
-          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/gestaodeterceiros.git /tmp/gt 2>/dev/null || true
-          if [ -d /tmp/gt ]; then
-            mkdir -p /tmp/gt/esteira_1_fabrica_software/output
-            cp -r output/* /tmp/gt/esteira_1_fabrica_software/output/ 2>/dev/null || true
-            cd /tmp/gt
-            git add -A
-            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
-            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/gestaodeterceiros.git main || true
-          fi
-        continue-on-error: true
       - name: Install lftp
         run: sudo apt-get install -y lftp
-      - name: Deploy SFTP com SSL ignore
+      - name: Deploy SFTP - Tentar todas portas
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
@@ -98,8 +56,12 @@ jobs:
             if [ -d "$dir" ]; then
               nome=$(basename $dir | sed "s/codigo_//")
               echo "Deploying $nome..."
-              lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; mirror -R --overwrite --delete $dir/ /modulos/sst/$nome/; bye" $SFTP_HOST 2>&1 || echo "LFTP failed for $nome"
-              echo "OK $nome"
+              # Tentar porta 21 sem SSL
+              lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; mirror -R --overwrite --delete $dir/ /www/modulos/sst/$nome/; bye" $SFTP_HOST 2>&1 || true
+              # Tentar porta 990 com SSL
+              lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ftp:ssl-force true; set ftp:ssl-protect-data true; set ssl:verify-certificate no; mirror -R --overwrite --delete $dir/ /www/modulos/sst/$nome/; bye" ftps://$SFTP_HOST:990 2>&1 || true
+              # Tentar FTPS explicito
+              lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; set ftp:ssl-force true; set ftp:ssl-protect-data true; mirror -R --overwrite --delete $dir/ /www/modulos/sst/$nome/; bye" $SFTP_HOST 2>&1 || true
             fi
           done
       - name: Done
