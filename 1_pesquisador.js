@@ -1,4 +1,4 @@
-// 1_pesquisador.js
+// 1_pesquisador.js - Detector de Modulos
 const fs = require('fs');
 const path = require('path');
 
