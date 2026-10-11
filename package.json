@@ -1,0 +1,10 @@
+{
+  "name": "esteira1-fabrica",
+  "version": "1.0.0",
+  "description": "Fabrica de Software automatizada",
+  "main": "index.js",
+  "scripts": {
+    "start": "node 1_pesquisador.js",
+    "generate": "node 3_programador.js"
+  }
+}
