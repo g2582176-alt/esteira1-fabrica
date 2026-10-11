@@ -82,21 +82,21 @@ jobs:
             git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
             git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/gestaodeterceiros.git main
           fi
-      - name: Install SSH tools
-        env:
-          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
-        run: sudo apt-get install -y sshpass
-      - name: Deploy SFTP principal
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
+      - name: Deploy SFTP sobrescrevendo
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
+          # Para cada modulo gerado, faz deploy sobrescrevendo
           for dir in output/codigo_*; do
             if [ -d "$dir" ]; then
               nome=$(basename $dir | sed "s/codigo_//")
               echo "Deploying $nome..."
-              sshpass -p "$SFTP_PASSWORD" scp -o StrictHostKeyChecking=no -r "$dir" "$SFTP_USER@$SFTP_HOST:/modulos/sst/$nome/" 2>&1 || echo "SCP failed for $nome"
+              lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; mirror -R --overwrite --delete $dir/ /modulos/sst/$nome/; bye" $SFTP_HOST
+              echo "OK $nome"
             fi
           done
       - name: Done
