@@ -1,4 +1,4 @@
-name: Esteira 1 - Multi-Deploy v3
+name: Esteira 1 - Multi-Deploy v4
 
 on:
   schedule:
@@ -11,40 +11,47 @@ jobs:
   esteira1:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    
     steps:
       - name: Checkout publico
         uses: actions/checkout@v4
+        
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+        
       - name: Detector
         run: node 1_pesquisador.js || echo OK
         continue-on-error: true
+        
       - name: Gerador
         run: node 3_programador.js || echo OK
         continue-on-error: true
+        
       - name: Commit no BM-Automacao
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          git config --global user.email esteira1@bot
-          git config --global user.name Esteira1Bot
+          git config --global user.email "esteira1@bot"
+          git config --local user.name "Esteira1Bot"
           git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/bm-auto 2>/dev/null || true
           if [ -d /tmp/bm-auto ]; then
-            mkdir -p /tmp/bm-auto/esteira_1_fabrica_software/output
-            cp -r output/* /tmp/bm-auto/esteira_1_fabrica_software/output/ 2>/dev/null || true
             cd /tmp/bm-auto
+            # Garante estrutura de diretorios correta
+            mkdir -p esteira_1_fabrica_software/output
+            mkdir -p esteira_1_fabrica_software/logs
+            # Copia output
+            cp -r ../output/* esteira_1_fabrica_software/output/ 2>/dev/null || true
             git add -A
-            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo"
+            git diff --staged --quiet || git commit -m "feat: esteira gerou codigo - $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main || true
           fi
         continue-on-error: true
-      - name: Chamar Scanner no servidor
-        run: |
-          echo "Chamando scanner no servidor..."
-          curl -s "https://bmsystem.app/scanner.php?auto=1" -m 120 || echo "Scanner nao respondeu (servidor pode ter firewall)"
-        continue-on-error: true
-      - name: Resultado
+        
+      - name: Webhook para deploy
         if: always()
-        run: echo "ESTEIRA 1: ${{ job.status }}"
+        run: |
+          echo "Workflow concluído"
+          echo "Status: ${{ job.status }}"
+          echo "Proxima execucao automatica: 02:00, 08:00, 14:00, 20:00 UTC"
