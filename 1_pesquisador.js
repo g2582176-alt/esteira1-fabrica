@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const OUT = path.join(__dirname, 'output');
+if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, {recursive: true});
 
 const MOD = {
   sst: ['acidentes','aprs','dds','epi','inspecoes','prevencao_incendio','pts','visibilidade','treinamentos'],
@@ -19,8 +20,6 @@ const MOD = {
   acesso_gratis: [],
   plano: []
 };
-
-if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, {recursive: true});
 
 const lista = [];
 for (const m in MOD) {
