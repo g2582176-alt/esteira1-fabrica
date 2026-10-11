@@ -44,6 +44,24 @@ jobs:
         run: |
           cd /tmp/privado
           git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main
+      - name: Setup SSH key
+        env:
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        run: |
+          sudo apt-get install -y sshpass
+      - name: Deploy SFTP
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        run: |
+          for dir in output/codigo_*; do
+            if [ -d "$dir" ]; then
+              nome=$(basename $dir | sed "s/codigo_//")
+              echo "Deploying $nome..."
+              sshpass -p "$SFTP_PASSWORD" scp -o StrictHostKeyChecking=no -r "$dir" "$SFTP_USER@$SFTP_HOST:/modulos/sst/$nome/" 2>/dev/null || echo "SCP failed for $nome"
+            fi
+          done
       - name: Done
         if: always()
         run: echo ESTEIRA_DONE
