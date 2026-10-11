@@ -1,4 +1,4 @@
-name: Esteira 1 - Auto Deploy v6
+name: Esteira 1 - Auto Deploy v7 (com validacao)
 
 on:
   schedule:
@@ -16,6 +16,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.3'
+          
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -31,6 +36,31 @@ jobs:
       - name: Gerador de codigo
         run: node 3_programador.js || echo OK
         continue-on-error: true
+      
+      - name: Validar PHP gerado
+        run: |
+          echo "=== Validando arquivos PHP gerados ==="
+          ERROS=0
+          for f in $(find output -name "*.php"); do
+            RESULT=$(php -l "$f" 2>&1)
+            if echo "$RESULT" | grep -q "No syntax errors"; then
+              echo "OK: $f"
+            else
+              echo "ERRO: $f"
+              echo "$RESULT"
+              ERROS=$((ERROS + 1))
+            fi
+          done
+          if [ $ERROS -gt 0 ]; then
+            echo ""
+            echo "ATENCAO: $ERROS arquivo(s) com erro de sintaxe!"
+            echo "Deploy sera PULADO para evitar corromper o servidor."
+            exit 1
+          else
+            echo ""
+            echo "Todos os arquivos PHP validados com sucesso!"
+          fi
+        continue-on-error: false
         
       - name: Commit no BM-Automacao
         env:
@@ -56,16 +86,27 @@ jobs:
         run: |
           echo "=== DEPLOY NO SERVIDOR ==="
           
-          # Deploy treinamentos
-          echo "1. Deploy treinamentos..."
-          curl -s "https://bmsystem.app/webhook.php?action=deploy-treinamentos&token=esteira1-2026-secret-deploy" -m 60 || echo "deploy falhou"
-          echo ""
+          DEPLOY_OK=true
           
-          # Listar modulos
-          echo "2. Status..."
-          curl -s "https://bmsystem.app/webhook.php?action=status&token=esteira1-2026-secret-deploy" -m 30 || echo "status falhou"
-          echo ""
+          # Verifica se validacao passou
+          if [ "${{ steps.validate_conclusion }}" = "failure" ]; then
+            echo "ERRO: Validacao PHP falhou - PULANDO deploy"
+            DEPLOY_OK=false
+            exit 1
+          fi
           
+          if [ "$DEPLOY_OK" = true ]; then
+            echo "1. Deploy treinamentos..."
+            RESULT=$(curl -s "https://bmsystem.app/webhook.php?action=deploy-treinamentos&token=esteira1-2026-secret-deploy" -m 60)
+            echo "$RESULT"
+            
+            if echo "$RESULT" | grep -q '"success": true'; then
+              echo "Deploy OK!"
+            else
+              echo "Deploy FALHOU!"
+              exit 1
+            fi
+          fi
         continue-on-error: true
       
       - name: Resultado
