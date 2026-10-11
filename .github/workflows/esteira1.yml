@@ -11,35 +11,29 @@ jobs:
   esteira1:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_PAT }}
-          
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          
       - name: Detector
-        run: node 1_pesquisador.js || echo "OK"
+        run: node 1_pesquisador.js || echo OK
         continue-on-error: true
-        
       - name: Gerador
-        run: node 3_programador.js || echo "OK"
+        run: node 3_programador.js || echo OK
         continue-on-error: true
-        
-      - name: Push para Repo Privado
+      - name: Push
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          git config user.email "esteira1@bot"
-          git config user.name "Esteira1 Bot"
+          git config user.email esteira1@bot
+          git config user.name Esteira1Bot
           git remote add privado https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git
           git push privado HEAD:main --force
-          
-      - name: Resultado
+      - name: Done
         if: always()
-        run: echo "ESTEIRA 1: ${{ job.status }}"
+        run: echo ESTEIRA_DONE
