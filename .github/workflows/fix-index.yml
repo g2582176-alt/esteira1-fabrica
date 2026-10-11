@@ -1,0 +1,32 @@
+name: Fix Index PHP
+
+on: workflow_dispatch
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+      - name: Sobrescrever index.php
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        run: |
+          # Remover treinamento antigo e copiar novo
+          sshpass -p "$SFTP_PASSWORD" ssh -o StrictHostKeyChecking=no "$SFTP_USER@$SFTP_HOST" "rm -rf /modulos/sst/treinamentos"
+          echo "Pasta antiga removida"
+          
+          # Criar novo index.php no servidor
+          NEW_INDEX='<?php echo "Modulo Treinamentos - CONCLUIDO em " . date("Y-m-d H:i:s"); ?>'
+          echo "$NEW_INDEX" | sshpass -p "$SFTP_PASSWORD" ssh -o StrictHostKeyChecking=no "$SFTP_USER@$SFTP_HOST" "cat > /modulos/sst/treinamentos/index.php"
+          
+          # Criar pasta se nao existir
+          sshpass -p "$SFTP_PASSWORD" ssh -o StrictHostKeyChecking=no "$SFTP_USER@$SFTP_HOST" "mkdir -p /modulos/sst/treinamentos/migrations /modulos/sst/treinamentos/services"
+          
+          # Upload dos arquivos gerados
+          sshpass -p "$SFTP_PASSWORD" scp -o StrictHostKeyChecking=no -r output/codigo_treinamentos/* "$SFTP_USER@$SFTP_HOST:/modulos/sst/treinamentos/"
+          
+          echo "Deploy concluido!"
