@@ -1,4 +1,4 @@
-name: Debug Upload Detalhado
+name: Debug Upload Corrigido
 
 on: workflow_dispatch
 
@@ -15,16 +15,18 @@ jobs:
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
           TS=$(date +%s)
-          echo "=== Upload detalhado em /modulos/sst/treinamentos/ ==="
           echo "DEBUG_$TS" > /tmp/debug_$TS.txt
           
-          # Usar lftp com verbose maximo
-          lftp -d -u "$SFTP_USER","$SFTP_PASSWORD" -e "
-            set ssl:verify-certificate no
-            set verbose:level 10
-            cd /modulos/sst/treinamentos
-            pwd
-            put /tmp/debug_$TS.txt
-            ls
-            bye
-          " $SFTP_HOST 2>&1 | tail -50
+          # Script lftp em arquivo
+          cat > /tmp/lftp_script.txt << 'LFTPEOF'
+set ssl:verify-certificate no
+cd /modulos/sst/treinamentos
+pwd
+put /tmp/debug_TS_PLACEHOLDER.txt
+ls
+bye
+LFTPEOF
+          sed -i "s/TS_PLACEHOLDER/$TS/g" /tmp/lftp_script.txt
+          cat /tmp/lftp_script.txt
+          echo "---"
+          lftp -d -u "$SFTP_USER","$SFTP_PASSWORD" -f /tmp/lftp_script.txt $SFTP_HOST 2>&1 | tail -30
