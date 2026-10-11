@@ -1,4 +1,4 @@
-// 3_programador.js - Gerador de Modulos
+// 3_programador.js - Gerador de Modulos (SEM ERROS DE SINTAXE)
 const fs = require('fs');
 const path = require('path');
 
@@ -33,31 +33,32 @@ const TITULOS = {
 };
 
 function phpContent(mod, sub, titulo) {
-  return '<?php\n'
-  + '/**\n'
-  + ' * Modulo: ' + mod + ' - ' + sub + '\n'
-  + ' * Titulo: ' + titulo + '\n'
-  + ' * Gerado pela Esteira 1\n'
-  + ' * Data: ' + new Date().toISOString() + '\n'
-  + ' */\n'
-  + '\n'
-  + '$root = $_SERVER["DOCUMENT_ROOT"] ?? "/home/bmsystem/www";\n'
-  + '\n'
-  + 'require_once $root . "/config/bootstrap.php";\n'
-  + 'require_once $root . "/config/verificar_acesso.php";\n'
-  + '\n'
-  + 'exigirPermissao("' + mod + '.' + sub + '");\n'
-  + '\n'
-  + '$titulo = "' + titulo + '";\n'
-  + 'include $root . "/components/header.php";\n'
-  + '?>\n'
-  + '<div class="container">\n'
-  + '    <h1><?php echo htmlspecialchars($titulo); ?></h1>\n'
-  + '    <p>Modulo ' + mod + ' - ' + sub + '</p>\n'
-  + '    <p>Gerado pela Esteira 1 do BM System.</p>\n'
-  + '    <p>Data: ' + new Date().toISOString() + '</p>\n'
-  + '</div>\n'
-  + '<?php include $root . "/components/footer.php";\n';
+  const lines = [];
+  lines.push('<?php');
+  lines.push('/**');
+  lines.push(' * Modulo: ' + mod + ' - ' + sub);
+  lines.push(' * Titulo: ' + titulo);
+  lines.push(' * Gerado automaticamente pela Esteira 1');
+  lines.push(' * Data: ' + new Date().toISOString());
+  lines.push(' */');
+  lines.push('');
+  lines.push('$root = $_SERVER["DOCUMENT_ROOT"] ?? "/home/bmsystem/www";');
+  lines.push('');
+  lines.push('require_once $root . "/config/bootstrap.php";');
+  lines.push('require_once $root . "/config/verificar_acesso.php";');
+  lines.push('');
+  lines.push('exigirPermissao("' + mod + '.' + sub + '");');
+  lines.push('');
+  lines.push('$titulo = "' + titulo + '";');
+  lines.push('?>');
+  lines.push('<div class="container">');
+  lines.push('    <h1><?php echo htmlspecialchars($titulo); ?></h1>');
+  lines.push('    <p>Modulo ' + mod + ' - ' + sub + '</p>');
+  lines.push('    <p>Gerado pela Esteira 1 do BM System.</p>');
+  lines.push('    <p>Data: ' + new Date().toISOString() + '</p>');
+  lines.push('</div>');
+  lines.push('<?php include $root . "/components/footer.php";');
+  return lines.join('\n');
 }
 
 let count = 0;
@@ -69,7 +70,7 @@ for (const m in MODS) {
     const titulo = TITULOS[s] || s;
     const php = phpContent(m, s, titulo);
     const css = '.container { padding: 20px; max-width: 1200px; margin: 0 auto; }\nh1 { color: #184f59; }';
-    const sql = '-- Schema\nCREATE TABLE IF NOT EXISTS ' + m + '_' + s + ' (id INT AUTO_INCREMENT PRIMARY KEY, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);\n';
+    const sql = '-- Schema do modulo ' + m + '/' + s + '\nCREATE TABLE IF NOT EXISTS ' + m + '_' + s + ' (id INT AUTO_INCREMENT PRIMARY KEY, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);\n';
     fs.writeFileSync(path.join(dir, 'index.php'), php);
     fs.writeFileSync(path.join(dir, 'style.css'), css);
     fs.writeFileSync(path.join(dir, 'schema.sql'), sql);
