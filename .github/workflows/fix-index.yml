@@ -1,4 +1,4 @@
-name: Descobrir Caminho HTTP
+name: Debug Upload Detalhado
 
 on: workflow_dispatch
 
@@ -8,42 +8,23 @@ jobs:
     steps:
       - name: Install lftp
         run: sudo apt-get install -y lftp
-      - name: Upload em varios lugares
+      - name: Upload com debug
         env:
           SFTP_HOST: ${{ secrets.SFTP_HOST }}
           SFTP_USER: ${{ secrets.SFTP_USER }}
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
-          SITE_URL: https://bmsystem.app
         run: |
           TS=$(date +%s)
-          echo "=== Upload de teste em varios caminhos ==="
+          echo "=== Upload detalhado em /modulos/sst/treinamentos/ ==="
+          echo "DEBUG_$TS" > /tmp/debug_$TS.txt
           
-          # Criar arquivo unico
-          echo "PATH_TEST_$TS" > /tmp/test_$TS.txt
-          
-          # Lista de caminhos para testar
-          declare -a paths=(
-            "/modulos/sst/treinamentos"
-            "/modulos/fabrica_software"
-            "/modulos"
-            "/"
-            "/public_html/modulos/sst/treinamentos"
-            "/www/modulos/sst/treinamentos"
-          )
-          
-          for path in "${paths[@]}"; do
-            echo "--- Upload para: $path ---"
-            lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "set ssl:verify-certificate no; cd $path; put /tmp/test_$TS.txt; bye" $SFTP_HOST 2>&1 | tail -3
-          done
-      - name: Testar URLs
-        env:
-          SITE_URL: https://bmsystem.app
-        run: |
-          TS=$(ls -t /tmp/test_*.txt | head -1 | xargs basename | sed 's/test_//;s/.txt//')
-          echo "Timestamp: $TS"
-          
-          echo "=== Testando URLs ==="
-          for url_path in "/modulos/sst/treinamentos/test_$TS.txt" "/modulos/sst/treinamentos/index.php" "/modulos/fabrica_software/test_$TS.txt" "/test_$TS.txt" "/modulos/test_$TS.txt"; do
-            echo "--- Testando: $url_path ---"
-            curl -s -o /dev/null -w "Status: %{http_code} | Tamanho: %{size_download}\n" "$SITE_URL$url_path"
-          done
+          # Usar lftp com verbose maximo
+          lftp -d -u "$SFTP_USER","$SFTP_PASSWORD" -e "
+            set ssl:verify-certificate no
+            set verbose:level 10
+            cd /modulos/sst/treinamentos
+            pwd
+            put /tmp/debug_$TS.txt
+            ls
+            bye
+          " $SFTP_HOST 2>&1 | tail -50
