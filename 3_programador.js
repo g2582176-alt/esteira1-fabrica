@@ -1,233 +1,233 @@
 /**
- * 3_programador.js - Gerador de Modulos
- * 
- * Gera codigo PHP para modulos SST
- * Usa template inteligente baseado no tipo de modulo
+ * 3_programador.js
+ * Gerador de Codigo PHP Completo para Modulos BMSystem
  */
 
 const fs = require('fs');
 const path = require('path');
 
 const OUT = path.join(__dirname, 'output');
-if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
 
-// Modulos que a esteira gerencia
-const MODS = {
-  sst: ['acidentes', 'aprs', 'dds', 'epi', 'inspecoes', 'prevencao_incendio', 'pts', 'treinamentos', 'visibilidade'],
-  dp: ['armarios', 'edificacoes'],
-  terceiros: ['colaboradores', 'configuracoes', 'documentos', 'empresas', 'portal'],
-  meio_ambiente: ['pesagem']
-};
-
-// Titulos humanizados
-const TITULOS = {
-  acidentes: 'Acidentes de Trabalho',
-  aprs: 'Analise Preliminar de Risco',
-  dds: 'Dialogo Diario de Seguranca',
-  epi: 'Equipamento de Protecao Individual',
-  inspecoes: 'Inspecoes de Seguranca',
-  prevencao_incendio: 'Prevencao de Incendio',
-  pts: 'Permissao de Trabalho',
-  visibilidade: 'Controle de Visibilidade',
-  treinamentos: 'Treinamentos e Capacitacao NRs',
-  armarios: 'Gestao de Armarios',
-  edificacoes: 'Edificacoes e Pavimentos',
-  colaboradores: 'Colaboradores Terceiros',
-  configuracoes: 'Configuracoes',
-  documentos: 'Documentos',
-  empresas: 'Empresas Terceiras',
-  portal: 'Portal de Terceiros',
-  pesagem: 'Pesagem de Residuos'
-};
-
-/**
- * Gera conteudo PHP baseado no modulo
- */
-function phpContent(mod, sub, titulo) {
-  const lines = [];
-  lines.push('<?php');
-  lines.push('/**');
-  lines.push(' * Modulo: ' + mod + ' - ' + sub);
-  lines.push(' * Titulo: ' + titulo);
-  lines.push(' * Gerado automaticamente pela Esteira 1');
-  lines.push(' * Data: ' + new Date().toISOString());
-  lines.push(' */');
-  lines.push('');
-  lines.push('$root = $_SERVER["DOCUMENT_ROOT"] ?? "/home/bmsystem/www";');
-  lines.push('');
-  lines.push('require_once $root . "/config/bootstrap.php";');
-  lines.push('require_once $root . "/config/verificar_acesso.php";');
-  lines.push('');
-  lines.push('exigirPermissao("' + mod + '.' + sub + '");');
-  lines.push('');
-  lines.push('$titulo = "' + titulo + '";');
-  lines.push('$subtitulo = "Gerenciado pelo sistema BM System";');
-  lines.push('$modulo = "' + sub + '";');
-  lines.push('$categoria = "' + mod + '";');
-  lines.push('?>');
-  lines.push('<div class="container py-4">');
-  lines.push('    <div class="d-flex justify-content-between align-items-center mb-4">');
-  lines.push('        <div>');
-  lines.push('            <h2 class="mb-1"><i class="fas fa-' + getIcon(sub) + ' me-2"></i><?= htmlspecialchars($titulo) ?></h2>');
-  lines.push('            <p class="text-muted mb-0"><?= htmlspecialchars($subtitulo) ?></p>');
-  lines.push('        </div>');
-  lines.push('        <div>');
-  lines.push('            <span class="badge bg-primary me-2"><?= ucfirst($categoria) ?></span>');
-  lines.push('            <span class="badge bg-secondary"><?= ucfirst($modulo) ?></span>');
-  lines.push('        </div>');
-  lines.push('    </div>');
-  lines.push('');
-  lines.push('    <div class="card">');
-  lines.push('        <div class="card-header">');
-  lines.push('            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Modulo ' + sub + '</h5>');
-  lines.push('        </div>');
-  lines.push('        <div class="card-body text-center py-5">');
-  lines.push('            <i class="fas fa-' + getIcon(sub) + ' fa-4x text-muted mb-3"></i>');
-  lines.push('            <h4>Modulo ' + titulo + '</h4>');
-  lines.push('            <p class="text-muted">Este modulo esta em desenvolvimento pela Esteira 1.</p>');
-  lines.push('            <p class="text-muted">Gerado em: <?= date("d/m/Y H:i:s") ?></p>');
-  lines.push('        </div>');
-  lines.push('    </div>');
-  lines.push('</div>');
-  lines.push('<?php include $root . "/components/footer.php";');
-  
-  return lines.join('\n');
+function gerarIndexPHP(modulo, config) {
+  const fields = config.fields.slice(0, 4);
+  return '<?php\n/**
+ * ' + modulo + ' - Lista
+ */\n' +
+    'if (session_status() === PHP_SESSION_NONE) { session_start(); }\n' +
+    'require_once "../../../config/conexao.php";\n' +
+    'require_once "../../../config/verificar_acesso.php";\n' +
+    'exigirPermissao("sst.' + modulo + '");\n\n' +
+    'require_once "services/' + config.service + '.php";\n' +
+    '$svc = new ' + config.service + '($pdo);\n' +
+    '$itens = $svc->listar();\n' +
+    '?>\n' +
+    '<!DOCTYPE html>\n<html><head><meta charset="UTF-8">\n' +
+    '<title>' + config.titulo + '</title>\n' +
+    '<link rel="stylesheet" href="' + modulo + '.css">\n' +
+    '</head><body>\n' +
+    '<div class="container">\n' +
+    '<div class="header-area"><h1>' + config.titulo + '</h1>\n' +
+    '<a href="criar.php" class="btn btn-primary">+ Novo</a></div>\n' +
+    '<div class="card"><table class="table">\n' +
+    '<thead><tr>' + fields.map(f => '<th>' + f.label + '</th>').join('') + '<th>Acoes</th></tr></thead>\n' +
+    '<tbody>\n' +
+    '<?php foreach($itens as $item): ?>\n' +
+    '<tr>' + fields.map(f => '<td><?=htmlspecialchars($item["' + f.nome + '"]??"")?></td>').join('') + 
+    '<td><a href="ver.php?id=<?=$item['id']?>">Ver</a> | <a href="editar.php?id=<?=$item['id']?>">Editar</a></td>\n' +
+    '</tr>\n' +
+    '<?php endforeach; ?>\n' +
+    '</tbody></table></div>\n' +
+    '<a href="../../painel.php" class="btn-voltar">Voltar</a>\n' +
+    '</div></body></html>';
 }
 
-/**
- * Obtem icone FontAwesome baseado no modulo
- */
-function getIcon(sub) {
-  const icons = {
-    acidentes: 'exclamation-triangle',
-    aprs: 'clipboard-list',
-    dds: '-comments',
-    epi: 'hard-hat',
-    inspecoes: 'search',
-    prevencao_incendio: 'fire',
-    pts: 'clipboard',
-    treinamentos: 'graduation-cap',
-    visibilidade: '-eye',
-    armarios: 'archive',
-    edificacoes: 'building',
-    colaboradores: 'users',
-    configuracoes: 'cog',
-    documentos: 'file-alt',
-    empresas: 'building',
-    portal: 'globe',
-    pesagem: 'weight'
-  };
-  return icons[sub] || 'cube';
-}
-
-/**
- * Gera CSS basico
- */
-function cssContent(mod, sub) {
-  return `.container { padding: 20px; max-width: 1200px; margin: 0 auto; }
-h1, h2, h3 { color: #184f59; }
-h1 { border-bottom: 2px solid #184f59; padding-bottom: 10px; }
-.card { box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: none; }
-.badge { font-size: 0.85em; }
-.text-muted { color: #6c757d !important; }
-`;
-}
-
-/**
- * Gera SQL basico
- */
-function sqlContent(mod, sub) {
-  const tableName = mod + '_' + sub;
-  return `-- Schema do modulo ${mod}/${sub}
--- Gerado pela Esteira 1 em ${new Date().toISOString()}
-
-CREATE TABLE IF NOT EXISTS ${tableName} (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(255) NOT NULL COMMENT 'Nome do registro',
-    descricao TEXT COMMENT 'Descricao detalhada',
-    status ENUM('ativo', 'inativo', 'pendente') DEFAULT 'ativo',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_status (status),
-    INDEX idx_created (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tabela ${mod}/${sub}';
-`;
-}
-
-/**
- * Funcao principal
- */
-async function main() {
-  console.log('═══════════════════════════════════════════');
-  console.log('  3 - GERADOR DE CODIGO');
-  console.log('═══════════════════════════════════════════');
-  
-  // Carrega modulos_faltantes.json se existir
-  let modulosFaltantes = [];
-  const modulosFile = path.join(OUT, 'modulos_faltantes.json');
-  
-  if (fs.existsSync(modulosFile)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(modulosFile, 'utf8'));
-      modulosFaltantes = data.modulos_faltantes || [];
-      console.log('Usando lista de modulos faltantes do detector');
-    } catch (e) {
-      console.log('Aviso: Nao foi possivel ler modulos_faltantes.json');
+function gerarCriarPHP(modulo, config) {
+  let form = '';
+  for (const f of config.fields) {
+    form += '<div class="form-group"><label>' + f.label + '</label>';
+    if (f.tipo === 'select') {
+      form += '<select name="' + f.nome + '" class="form-control" required><option value="">Selecione...</option>';
+      for (const o of f.options) form += '<option value="' + o + '">' + o + '</option>';
+      form += '</select>';
+    } else if (f.tipo === 'textarea') {
+      form += '<textarea name="' + f.nome + '" class="form-control" rows="4" required></textarea>';
+    } else {
+      form += '<input type="' + f.tipo + '" name="' + f.nome + '" class="form-control" ' + (f.required ? 'required' : '') + '>';
     }
+    form += '</div>\n';
   }
   
-  // Se nao tem lista, gera todos
-  if (modulosFaltantes.length === 0) {
-    console.log('Gerando todos os modulos (lista vazia)');
-    for (const m in MODS) {
-      for (const s of MODS[m]) {
-        modulosFaltantes.push({ m: m, s: s });
+  return '<?php\nif (session_status() === PHP_SESSION_NONE) { session_start(); }\n' +
+    'require_once "../../../config/conexao.php";\n' +
+    'require_once "../../../config/verificar_acesso.php";\n' +
+    'exigirPermissao("sst.' + modulo + '");\n' +
+    'require_once "services/' + config.service + '.php";\n' +
+    '$svc = new ' + config.service + '($pdo);\n' +
+    'if ($_SERVER["REQUEST_METHOD"] === "POST") {\n' +
+    config.fields.map(f => '  $dados["' + f.nome + '"] = $_POST["' + f.nome + '"] ?? "";').join('\n') + '\n' +
+    '  $id = $svc->criar($dados);\n' +
+    '  if ($id) { header("Location: ver.php?id=$id"); exit; }\n' +
+    '}\n' +
+    '?>\n' +
+    '<!DOCTYPE html><html><head><meta charset="UTF-8">\n' +
+    '<title>Criar ' + modulo + '</title><link rel="stylesheet" href="' + modulo + '.css">\n' +
+    '</head><body>\n' +
+    '<div class="container"><div class="header-area"><h1>Criar ' + config.titulo + '</h1></div>\n' +
+    '<form method="POST" class="card">' + form + '\n' +
+    '<button type="submit" class="btn btn-primary">Salvar</button>\n' +
+    '<a href="index.php" class="btn btn-secondary">Cancelar</a>\n' +
+    '</form><a href="index.php" class="btn-voltar">Voltar</a></div></body></html>';
+}
+
+function gerarVerPHP(modulo, config) {
+  let rows = '';
+  for (const f of config.fields) {
+    rows += '<tr><th>' + f.label + ':</th><td><?=htmlspecialchars($item["' + f.nome + '"]??"-")?></td></tr>\n';
+  }
+  return '<?php\nif (session_status() === PHP_SESSION_NONE) { session_start(); }\n' +
+    'require_once "../../../config/conexao.php";\n' +
+    'require_once "../../../config/verificar_acesso.php";\n' +
+    'exigirPermissao("sst.' + modulo + '");\n' +
+    'require_once "services/' + config.service + '.php";\n' +
+    '$svc = new ' + config.service + '($pdo);\n' +
+    '$id = (int)($_GET["id"] ?? 0);\n' +
+    '$item = $svc->buscarPorId($id);\n' +
+    'if (!$item) { header("Location: index.php"); exit; }\n' +
+    '?>\n' +
+    '<!DOCTYPE html><html><head><meta charset="UTF-8">\n' +
+    '<title>Detalhes - ' + modulo + '</title><link rel="stylesheet" href="' + modulo + '.css">\n' +
+    '</head><body>\n' +
+    '<div class="container"><div class="header-area"><h1>Detalhes</h1>\n' +
+    '<a href="editar.php?id=<?=$id?>" class="btn btn-primary">Editar</a>\n' +
+    '<a href="index.php" class="btn btn-secondary">Voltar</a></div>\n' +
+    '<div class="card"><table class="table table-details">\n' + rows + '\n' +
+    '</table></div></div></body></html>';
+}
+
+function gerarEditarPHP(modulo, config) {
+  let form = '';
+  for (const f of config.fields) {
+    form += '<div class="form-group"><label>' + f.label + '</label>';
+    if (f.tipo === 'select') {
+      form += '<select name="' + f.nome + '" class="form-control" required>';
+      for (const o of f.options) {
+        form += '<option value="' + o + '" <?=$item["' + f.nome + '"]=="' + o + '"?"selected":""?>>' + o + '</option>';
       }
+      form += '</select>';
+    } else if (f.tipo === 'textarea') {
+      form += '<textarea name="' + f.nome + '" class="form-control" rows="4" required><?=htmlspecialchars($item["' + f.nome + '"]??"")?></textarea>';
+    } else {
+      form += '<input type="' + f.tipo + '" name="' + f.nome + '" class="form-control" value="<?=htmlspecialchars($item["' + f.nome + '"]??"")?>" ' + (f.required ? 'required' : '') + '>';
+    }
+    form += '</div>\n';
+  }
+  
+  return '<?php\nif (session_status() === PHP_SESSION_NONE) { session_start(); }\n' +
+    'require_once "../../../config/conexao.php";\n' +
+    'require_once "../../../config/verificar_acesso.php";\n' +
+    'exigirPermissao("sst.' + modulo + '");\n' +
+    'require_once "services/' + config.service + '.php";\n' +
+    '$svc = new ' + config.service + '($pdo);\n' +
+    '$id = (int)($_GET["id"] ?? 0);\n' +
+    '$item = $svc->buscarPorId($id);\n' +
+    'if (!$item) { header("Location: index.php"); exit; }\n' +
+    'if ($_SERVER["REQUEST_METHOD"] === "POST") {\n' +
+    config.fields.map(f => '  $dados["' + f.nome + '"] = $_POST["' + f.nome + '"] ?? "";').join('\n') + '\n' +
+    '  if ($svc->atualizar($id, $dados)) { header("Location: ver.php?id=$id"); exit; }\n' +
+    '}\n' +
+    '?>\n' +
+    '<!DOCTYPE html><html><head><meta charset="UTF-8">\n' +
+    '<title>Editar - ' + modulo + '</title><link rel="stylesheet" href="' + modulo + '.css">\n' +
+    '</head><body>\n' +
+    '<div class="container"><div class="header-area"><h1>Editar</h1></div>\n' +
+    '<form method="POST" class="card">' + form + '\n' +
+    '<button type="submit" class="btn btn-primary">Salvar</button>\n' +
+    '<a href="index.php" class="btn btn-secondary">Cancelar</a>\n' +
+    '</form><a href="index.php" class="btn-voltar">Voltar</a></div></body></html>';
+}
+
+const MODULOS = {
+  treinamentos: {
+    titulo: 'Treinamentos e Capacitacao NRs',
+    service: 'TreinamentoService',
+    nr: 'NR-01, NR-05, NR-06, NR-07, NR-17, NR-18, NR-35',
+    fields: [
+      { nome: 'nome', tipo: 'text', label: 'Nome do Treinamento', required: true },
+      { nome: 'nr', tipo: 'text', label: 'Norma Regulamentadora', required: true },
+      { nome: 'data_inicio', tipo: 'date', label: 'Data de Inicio', required: true },
+      { nome: 'data_fim', tipo: 'date', label: 'Data de Termino', required: true },
+      { nome: 'carga_horaria', tipo: 'number', label: 'Carga Horaria (horas)', required: true },
+      { nome: 'instrutor', tipo: 'text', label: 'Instrutor', required: false },
+      { nome: 'local', tipo: 'text', label: 'Local', required: false },
+      { nome: 'status', tipo: 'select', label: 'Status', options: ['agendado', 'em_andamento', 'concluido', 'cancelado'] }
+    ]
+  },
+  acidentes: {
+    titulo: 'Acidentes de Trabalho',
+    service: 'AcidenteService',
+    nr: 'NR-01, NR-05',
+    fields: [
+      { nome: 'data_ocorrencia', tipo: 'datetime-local', label: 'Data/Ocorrencia', required: true },
+      { nome: 'local', tipo: 'text', label: 'Local', required: true },
+      { nome: 'descricao', tipo: 'textarea', label: 'Descricao', required: true },
+      { nome: 'vitima', tipo: 'text', label: 'Vitima', required: false },
+      { nome: 'gravidade', tipo: 'select', label: 'Gravidade', options: ['leve', 'grave', 'fatal'] }
+    ]
+  },
+  epi: {
+    titulo: 'Equipamento de Protecao Individual',
+    service: 'EpiService',
+    nr: 'NR-06',
+    fields: [
+      { nome: 'nome', tipo: 'text', label: 'Nome do EPI', required: true },
+      { nome: 'ca', tipo: 'text', label: 'CA (Certificado de Aprovacao)', required: true },
+      { nome: 'validade', tipo: 'date', label: 'Validade CA', required: false },
+      { nome: 'quantidade', tipo: 'number', label: 'Quantidade em Estoque', required: false }
+    ]
+  },
+  inspecoes: {
+    titulo: 'Inspecoes de Seguranca',
+    service: 'InspecaoService',
+    nr: 'NR-01, NR-18',
+    fields: [
+      { nome: 'data', tipo: 'date', label: 'Data da Inspecao', required: true },
+      { nome: 'local', tipo: 'text', label: 'Local', required: true },
+      { nome: 'responsavel', tipo: 'text', label: 'Responsavel', required: true },
+      { nome: 'resultado', tipo: 'textarea', label: 'Resultado/Observacoes', required: false }
+    ]
+  }
+};
+
+async function main() {
+  console.log("=== 3 - GERADOR DE CODIGO PHP ===");
+
+  if (!fs.existsSync(OUT)) fs.mkdirSync(OUT, { recursive: true });
+
+  const gerados = [];
+
+  for (const [mod, config] of Object.entries(MODULOS)) {
+    console.log("Gerando modulo: " + mod);
+    const modPath = path.join(OUT, 'sst', mod);
+    fs.mkdirSync(modPath, { recursive: true });
+
+    const paginas = {
+      'index.php': gerarIndexPHP(mod, config),
+      'criar.php': gerarCriarPHP(mod, config),
+      'ver.php': gerarVerPHP(mod, config),
+      'editar.php': gerarEditarPHP(mod, config)
+    };
+
+    for (const [nome, conteudo] of Object.entries(paginas)) {
+      const filePath = path.join(modPath, nome);
+      fs.writeFileSync(filePath, conteudo);
+      gerados.push({ modulo: mod, arquivo: nome });
+      console.log("  + " + nome);
     }
   }
-  
-  console.log('Modulos a gerar: ' + modulosFaltantes.length);
-  console.log('');
-  
-  let count = 0;
-  const out = [];
-  
-  for (const modData of modulosFaltantes) {
-    const m = modData.m;
-    const s = modData.s;
-    
-    const dir = path.join(OUT, m, s);
-    fs.mkdirSync(dir, { recursive: true });
-    
-    const titulo = TITULOS[s] || s;
-    
-    // Gera arquivos
-    const php = phpContent(m, s, titulo);
-    const css = cssContent(m, s);
-    const sql = sqlContent(m, s);
-    
-    fs.writeFileSync(path.join(dir, 'index.php'), php);
-    fs.writeFileSync(path.join(dir, 'style.css'), css);
-    fs.writeFileSync(path.join(dir, 'schema.sql'), sql);
-    
-    out.push({ m: m, s: s, l: dir, titulo: titulo });
-    count++;
-    
-    console.log('  Gerado: ' + m + '/' + s + ' -> ' + titulo);
-  }
-  
-  const r = {
-    ts: new Date().toISOString(),
-    count: count,
-    files: out
-  };
-  
-  fs.writeFileSync(path.join(OUT, 'gerados.json'), JSON.stringify(r, null, 2));
-  
-  console.log('');
-  console.log('3_PROGRAMADOR: ' + count + ' modulos gerados');
-  
-  return r;
+
+  fs.writeFileSync(path.join(OUT, "paginas_geradas.json"), JSON.stringify({ ts: new Date().toISOString(), gerados, total: gerados.length }, null, 2));
+  console.log("=== TOTAL: " + gerados.length + " paginas geradas ===");
+  return { gerados, total: gerados.length };
 }
 
 main().catch(console.error);
