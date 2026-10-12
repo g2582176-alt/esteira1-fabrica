@@ -1,4 +1,4 @@
-name: Esteira 1 - Auto Deploy v9 (Com IA Evolutiva)
+name: Esteira 1 - Auto Deploy v10
 
 on:
   schedule:
@@ -6,11 +6,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      modulo:
-        description: 'Modulo especifico para deploy (opcional)'
-        required: false
-        default: ''
 
 jobs:
   esteira1:
@@ -35,60 +30,41 @@ jobs:
         run: npm install 2>/dev/null || true
         
       - name: Detector de modulos
-        id: detector
         env:
           BMSYSTEM_API_KEY: ${{ secrets.BMSYSTEM_API_KEY }}
-        run: |
-          echo FASE 1: DETECTOR DE MODULOS
-          node 1_pesquisador.js || echo OK
+        run: node 1_pesquisador.js || echo OK
           
       - name: Pesquisa de Tendencias
         run: |
-          echo FASE 2: TENDENCIAS SST
           node 2_pesquisador_tendencias.js || echo OK
           node 2_web_scraper.js || echo OK
         
-      - name: Completar modulos incompletos
-        run: |
-          echo FASE 3: COMPLETAR MODULOS
-          node 5_completar.js || echo OK
-        
-      - name: Analise IA dos modulos
-        env:
-          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
-        run: |
-          echo FASE 3.5: ANALISE IA
-          node 4_analisador_ia.js || echo OK
+      - name: Analise IA
+        run: node 4_analisador_ia.js || echo OK
+
+      - name: Melhorar Treinamentos
+        run: node 6_melhorar_treinamentos.js || echo OK
 
       - name: Gerador de codigo
-        run: |
-          echo FASE 4: GERADOR DE CODIGO
-          node 3_programador.js || echo OK
+        run: node 3_programador.js || echo OK
 
-      - name: Gerador IA - Evolucao
-        env:
-          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
-        run: |
-          echo FASE 4.5: GERADOR IA EVOLUTIVO
-          node 3_gerador_ia.js || echo OK
+      - name: Gerador IA
+        run: node 3_gerador_ia.js || echo OK
         
-      - name: Validar PHP gerado
+      - name: Validar PHP
         run: |
-          echo FASE 5: VALIDACAO PHP
           for f in $(find output -name "*.php" 2>/dev/null); do
-            php -l "$f" 2>&1 | grep -q "No syntax errors" && echo "OK: $(basename $f)" || echo "ERRO: $(basename $f)"
+            php -l "$f" 2>&1 | grep -q "No syntax errors" && echo "OK: $f"
           done
+        continue-on-error: true
         
       - name: Validacao de erros
-        run: |
-          echo FASE 6: VALIDACAO DE ERROS
-          node 4_validar.js || echo OK
+        run: node 4_validar.js || echo OK
         
       - name: Commit no BM-Automacao
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          echo FASE 7: COMMIT BM-AUTOMACAO
           git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/bm-auto 2>/dev/null || true
           if [ -d /tmp/bm-auto ]; then
             cd /tmp/bm-auto
@@ -96,24 +72,22 @@ jobs:
             mkdir -p esteira_1_fabrica_software/output
             cp -r ../output/* esteira_1_fabrica_software/output/ 2>/dev/null || true
             git add -A
-            git diff --staged --quiet || git commit -m "esteira: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git diff --staged --quiet || git commit -m "esteira: $(date)"
             git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main || true
           fi
         continue-on-error: true
-      
+     
       - name: Deploy automatico
         if: always()
         run: |
-          echo FASE 8: DEPLOY
-          RESULT=$(curl -s "https://bmsystem.app/webhook.php?action=deploy-all&token=esteira1-2026-secret-deploy" -m 60)
-          echo "$RESULT"
+          curl -s "https://bmsystem.app/webhook.php?action=deploy-all&token=esteira1-2026-secret-deploy" -m 60
         continue-on-error: true
-      
+     
       - name: Resultado
         if: always()
         run: |
-          echo ============================================
-          echo ESTEIRA 1 v9 - RESULTADO
-          echo ============================================
+          echo ================================
+          echo ESTEIRA v10 - FOCO TREINAMENTOS
+          echo ================================
           echo Status: ${{ job.status }}
-          echo ============================================
+          echo ================================
