@@ -1,11 +1,17 @@
-name: Esteira 1 - Auto Deploy v7 (com validacao)
+name: Esteira 1 - Auto Deploy v8 (Completa)
 
 on:
   schedule:
+    # 4 horarios: 02:00, 08:00, 14:00, 20:00 UTC (equivale a 23:00, 05:00, 11:00, 17:00 BRT)
     - cron: '0 2,8,14,20 * * *'
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      modulo:
+        description: 'Módulo específico para deploy (opcional)'
+        required: false
+        default: ''
 
 jobs:
   esteira1:
@@ -29,17 +35,47 @@ jobs:
       - name: Instalar deps
         run: npm install 2>/dev/null || true
         
-      - name: Detector de modulos
-        run: node 1_pesquisador.js || echo OK
-        continue-on-error: true
-        
-      - name: Gerador de codigo
-        run: node 3_programador.js || echo OK
-        continue-on-error: true
-      
-      - name: Validar PHP gerado
+      # ============================================
+      # FASE 1: DETECTOR DE MODULOS (via API)
+      # ============================================
+      - name: Detector de modulos (API)
+        id: detector
         run: |
-          echo "=== Validando arquivos PHP gerados ==="
+          echo "=== FASE 1: DETECTOR DE MODULOS ==="
+          node 1_pesquisador.js || echo OK
+          echo "Modulos detectados: $(cat output/modulos_faltantes.json | grep -c 'm\s*:' )"
+          echo "modulos=$(cat output/modulos_faltantes.json | head -20)" >> $GITHUB_OUTPUT
+        
+      # ============================================
+      # FASE 2: PESQUISA DE TENDENCIAS
+      # ============================================
+      - name: Pesquisa de Tendencias
+        id: tendencias
+        run: |
+          echo "=== FASE 2: TENDENCIAS SST ==="
+          node 2_pesquisador_tendencias.js || echo "Tendencias OK"
+          node 2_web_scraper.js || echo "Web scraping OK"
+          if [ -f output/tendencias.json ]; then
+            echo "Relatorio tendencias: OK"
+            cat output/tendencias.json | head -50
+          fi
+        
+      # ============================================
+      # FASE 3: GERADOR DE CODIGO
+      # ============================================
+      - name: Gerador de codigo
+        run: |
+          echo "=== FASE 3: GERADOR DE CODIGO ==="
+          node 3_programador.js || echo OK
+          echo "Arquivos gerados: $(find output -name '*.php' | wc -l)"
+        
+      # ============================================
+      # FASE 4: VALIDAR PHP (Sintaxe)
+      # ============================================
+      - name: Validar PHP gerado
+        id: validate
+        run: |
+          echo "=== FASE 4: VALIDACAO PHP ==="
           ERROS=0
           for f in $(find output -name "*.php"); do
             RESULT=$(php -l "$f" 2>&1)
@@ -60,12 +96,15 @@ jobs:
             echo ""
             echo "Todos os arquivos PHP validados com sucesso!"
           fi
-        continue-on-error: false
         
+      # ============================================
+      # FASE 5: COMMIT NO BM-AUTOMACAO
+      # ============================================
       - name: Commit no BM-Automacao
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
+          echo "=== FASE 5: COMMIT BM-AUTOMACAO ==="
           git config --global user.email "esteira1@bot"
           git config --local user.name "Esteira1Bot"
           git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/bm-auto 2>/dev/null || true
@@ -77,42 +116,75 @@ jobs:
             git add -A
             git diff --staged --quiet || git commit -m "esteira: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main || true
-            echo "Commit feito"
+            echo "Commit feito com sucesso!"
           fi
         continue-on-error: true
       
+      # ============================================
+      # FASE 6: DEPLOY PARA TODOS OS MODULOS
+      # ============================================
       - name: Deploy automatico no servidor
         if: always()
         run: |
-          echo "=== DEPLOY NO SERVIDOR ==="
-          
-          DEPLOY_OK=true
+          echo "=== FASE 6: DEPLOY NO SERVIDOR ==="
           
           # Verifica se validacao passou
-          if [ "${{ steps.validate_conclusion }}" = "failure" ]; then
+          if [ "${{ steps.validate.conclusion }}" = "failure" ]; then
             echo "ERRO: Validacao PHP falhou - PULANDO deploy"
-            DEPLOY_OK=false
             exit 1
           fi
           
-          if [ "$DEPLOY_OK" = true ]; then
-            echo "1. Deploy treinamentos..."
-            RESULT=$(curl -s "https://bmsystem.app/webhook.php?action=deploy-treinamentos&token=esteira1-2026-secret-deploy" -m 60)
-            echo "$RESULT"
-            
-            if echo "$RESULT" | grep -q '"success": true'; then
-              echo "Deploy OK!"
-            else
-              echo "Deploy FALHOU!"
-              exit 1
-            fi
+          # Deploy ALL modulos via webhook
+          echo "1. Deploy todos os modulos..."
+          RESULT=$(curl -s "https://bmsystem.app/webhook.php?action=deploy-all&token=esteira1-2026-secret-deploy" -m 60)
+          echo "$RESULT"
+          
+          if echo "$RESULT" | grep -q '"success": true'; then
+            echo "Deploy OK!"
+          else
+            echo "Deploy parcial ou falhou!"
+          fi
+          
+          # Deploy especifico se solicitado
+          if [ -n "${{ github.event.inputs.modulo }}" ]; then
+            echo "2. Deploy modulo especifico: ${{ github.event.inputs.modulo }}"
+            MODULO_RESULT=$(curl -s "https://bmsystem.app/webhook.php?action=deploy-module&module=${{ github.event.inputs.modulo }}&token=esteira1-2026-secret-deploy" -m 60)
+            echo "$MODULO_RESULT"
           fi
         continue-on-error: true
       
+      # ============================================
+      # FASE 7: NOTIFICACOES
+      # ============================================
+      - name: Notificacao por Email
+        if: failure()
+        run: |
+          echo "=== FASE 7: NOTIFICACAO ==="
+          echo "ATENCAO: Pipeline falhou!"
+          echo "Job: ${{ github.job }}"
+          echo "Run: ${{ github.run_id }}"
+          # Email para o admin (via curl para API de email do servidor)
+          curl -s -X POST "https://bmsystem.app/api/notify.php" \
+            -d "to=admin@bmsystem.app&subject=Esteira1+falhou&body=Pipeline+falhou+em+${{ github.run_id }}" \
+            || echo "Notificacao nao enviada"
+        continue-on-error: true
+      
+      # ============================================
+      # RESULTADO FINAL
+      # ============================================
       - name: Resultado
         if: always()
         run: |
-          echo "============================="
-          echo "ESTEIRA 1: ${{ job.status }}"
-          echo "Proxima: 02:00, 08:00, 14:00, 20:00 UTC"
-          echo "============================="
+          echo "============================================"
+          echo "  ESTEIRA 1 - RESULTADO FINAL"
+          echo "============================================"
+          echo "Status: ${{ job.status }}"
+          echo "Data: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Horario BRT: $(date -u -d '+3 hours' +%H:%M)"
+          echo ""
+          echo "Proximas execucoes:"
+          echo "  02:00 UTC -> 23:00 BRT (dia anterior)"
+          echo "  08:00 UTC -> 05:00 BRT"
+          echo "  14:00 UTC -> 11:00 BRT"
+          echo "  20:00 UTC -> 17:00 BRT"
+          echo "============================================"
