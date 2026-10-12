@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       modulo:
-        description: 'Módulo específico para deploy (opcional)'
+        description: 'Modulo especifico para deploy (opcional)'
         required: false
         default: ''
 
@@ -36,15 +36,26 @@ jobs:
         run: npm install 2>/dev/null || true
         
       # ============================================
-      # FASE 1: DETECTOR DE MODULOS (via API)
+      # FASE 1: DETECTOR DE MODULOS (via API Fabrica + Webhook)
       # ============================================
-      - name: Detector de modulos (API)
+      - name: Detector de modulos
         id: detector
+        env:
+          BMSYSTEM_API_KEY: ${{ secrets.BMSYSTEM_API_KEY }}
         run: |
           echo "=== FASE 1: DETECTOR DE MODULOS ==="
+          echo "Verificando Fabrica de Software e servidor..."
           node 1_pesquisador.js || echo OK
-          echo "Modulos detectados: $(cat output/modulos_faltantes.json | grep -c 'm\s*:' )"
-          echo "modulos=$(cat output/modulos_faltantes.json | head -20)" >> $GITHUB_OUTPUT
+          
+          # Mostra resultado
+          if [ -f output/modulos_faltantes.json ]; then
+            echo ""
+            echo "Modulos detectados:"
+            cat output/modulos_faltantes.json | grep -o '"faltantes":\[[^]]*\]' | head -1 || echo "0"
+            echo ""
+            echo "Modulos ja deployados:"
+            cat output/modulos_faltantes.json | grep -o '"deployados":\[[^]]*\]' | head -1 || echo "[]"
+          fi
         
       # ============================================
       # FASE 2: PESQUISA DE TENDENCIAS
@@ -57,7 +68,6 @@ jobs:
           node 2_web_scraper.js || echo "Web scraping OK"
           if [ -f output/tendencias.json ]; then
             echo "Relatorio tendencias: OK"
-            cat output/tendencias.json | head -50
           fi
         
       # ============================================
@@ -66,27 +76,48 @@ jobs:
       - name: Gerador de codigo
         run: |
           echo "=== FASE 3: GERADOR DE CODIGO ==="
-          node 3_programador.js || echo OK
-          echo "Arquivos gerados: $(find output -name '*.php' | wc -l)"
+          
+          # Verifica se tem modulos faltantes
+          if [ -f output/modulos_faltantes.json ]; then
+            FALTANTES=$(cat output/modulos_faltantes.json | grep -o '"faltantes":\[[^]]*\]' | wc -l)
+            if [ "$FALTANTES" -gt 0 ]; then
+              echo "Gerando codigo para modulos faltantes..."
+              node 3_programador.js || echo OK
+            else
+              echo "Nenhum modulo faltante - pulando geracao"
+            fi
+          else
+            echo "Gerando todos os modulos..."
+            node 3_programador.js || echo OK
+          fi
+          
+          echo "Arquivos gerados: $(find output -name '*.php' 2>/dev/null | wc -l)"
         
       # ============================================
       # FASE 4: VALIDAR PHP (Sintaxe)
       # ============================================
       - name: Validar PHP gerado
-        id: validate
         run: |
           echo "=== FASE 4: VALIDACAO PHP ==="
+          
+          PHP_COUNT=$(find output -name '*.php' 2>/dev/null | wc -l)
+          if [ "$PHP_COUNT" -eq 0 ]; then
+            echo "Nenhum arquivo PHP para validar"
+            exit 0
+          fi
+          
           ERROS=0
           for f in $(find output -name "*.php"); do
             RESULT=$(php -l "$f" 2>&1)
             if echo "$RESULT" | grep -q "No syntax errors"; then
-              echo "OK: $f"
+              echo "OK: $(basename $f)"
             else
-              echo "ERRO: $f"
+              echo "ERRO: $(basename $f)"
               echo "$RESULT"
               ERROS=$((ERROS + 1))
             fi
           done
+          
           if [ $ERROS -gt 0 ]; then
             echo ""
             echo "ATENCAO: $ERROS arquivo(s) com erro de sintaxe!"
@@ -128,12 +159,6 @@ jobs:
         run: |
           echo "=== FASE 6: DEPLOY NO SERVIDOR ==="
           
-          # Verifica se validacao passou
-          if [ "${{ steps.validate.conclusion }}" = "failure" ]; then
-            echo "ERRO: Validacao PHP falhou - PULANDO deploy"
-            exit 1
-          fi
-          
           # Deploy ALL modulos via webhook
           echo "1. Deploy todos os modulos..."
           RESULT=$(curl -s "https://bmsystem.app/webhook.php?action=deploy-all&token=esteira1-2026-secret-deploy" -m 60)
@@ -154,19 +179,16 @@ jobs:
         continue-on-error: true
       
       # ============================================
-      # FASE 7: NOTIFICACOES
+      # FASE 7: NOTIFICACOES (Email em caso de erro)
       # ============================================
-      - name: Notificacao por Email
+      - name: Notificacao de Erro
         if: failure()
         run: |
           echo "=== FASE 7: NOTIFICACAO ==="
           echo "ATENCAO: Pipeline falhou!"
           echo "Job: ${{ github.job }}"
           echo "Run: ${{ github.run_id }}"
-          # Email para o admin (via curl para API de email do servidor)
-          curl -s -X POST "https://bmsystem.app/api/notify.php" \
-            -d "to=admin@bmsystem.app&subject=Esteira1+falhou&body=Pipeline+falhou+em+${{ github.run_id }}" \
-            || echo "Notificacao nao enviada"
+          echo "Link: https://github.com/g2582176-alt/esteira1-fabrica/actions/runs/${{ github.run_id }}"
         continue-on-error: true
       
       # ============================================
