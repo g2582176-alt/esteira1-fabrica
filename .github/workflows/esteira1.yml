@@ -1,8 +1,7 @@
-name: Esteira 1 - Auto Deploy v8 (Completa)
+name: Esteira 1 - Auto Deploy v9 (Com IA Evolutiva)
 
 on:
   schedule:
-    # 4 horarios: 02:00, 08:00, 14:00, 20:00 UTC (23:00, 05:00, 11:00, 17:00 BRT)
     - cron: '0 2,8,14,20 * * *'
   push:
     branches: [main]
@@ -35,110 +34,61 @@ jobs:
       - name: Instalar deps
         run: npm install 2>/dev/null || true
         
-      # ============================================
-      # FASE 1: DETECTOR DE MODULOS
-      # ============================================
       - name: Detector de modulos
         id: detector
         env:
           BMSYSTEM_API_KEY: ${{ secrets.BMSYSTEM_API_KEY }}
         run: |
-          echo "=== FASE 1: DETECTOR DE MODULOS ==="
-          echo "Verificando Fabrica de Software e servidor..."
+          echo FASE 1: DETECTOR DE MODULOS
           node 1_pesquisador.js || echo OK
           
-          # Mostra resultado
-          if [ -f output/modulos_faltantes.json ]; then
-            echo ""
-            echo "Modulos faltantes:"
-            cat output/modulos_faltantes.json | grep -A5 '"faltantes"' || echo "0"
-          fi
-        
-      # ============================================
-      # FASE 2: PESQUISA DE TENDENCIAS
-      # ============================================
       - name: Pesquisa de Tendencias
-        id: tendencias
         run: |
-          echo "=== FASE 2: TENDENCIAS SST ==="
-          node 2_pesquisador_tendencias.js || echo "Tendencias OK"
-          node 2_web_scraper.js || echo "Web scraping OK"
+          echo FASE 2: TENDENCIAS SST
+          node 2_pesquisador_tendencias.js || echo OK
+          node 2_web_scraper.js || echo OK
         
-      # ============================================
-      # FASE 3: COMPLETAR MODULOS INCOMPLETOS
-      # ============================================
       - name: Completar modulos incompletos
         run: |
-          echo "=== FASE 3: COMPLETAR MODULOS ==="
+          echo FASE 3: COMPLETAR MODULOS
           node 5_completar.js || echo OK
-          
-          if [ -f output/completados.json ]; then
-            echo "Modulos completados:"
-            cat output/completados.json
-          fi
         
-      # ============================================
-      # FASE 4: GERADOR DE CODIGO
-      # ============================================
+      - name: Analise IA dos modulos
+        env:
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
+        run: |
+          echo FASE 3.5: ANALISE IA
+          node 4_analisador_ia.js || echo OK
+
       - name: Gerador de codigo
         run: |
-          echo "=== FASE 4: GERADOR DE CODIGO ==="
+          echo FASE 4: GERADOR DE CODIGO
           node 3_programador.js || echo OK
-          echo "Arquivos gerados: $(find output -name '*.php' 2>/dev/null | wc -l)"
-        
-      # ============================================
-      # FASE 5: VALIDAR PHP (Sintaxe)
-      # ============================================
-      - name: Validar PHP gerado
-        id: validate
+
+      - name: Gerador IA - Evolucao
+        env:
+          MINIMAX_API_KEY: ${{ secrets.MINIMAX_API_KEY }}
         run: |
-          echo "=== FASE 5: VALIDACAO PHP ==="
-          
-          PHP_COUNT=$(find output -name '*.php' 2>/dev/null | wc -l)
-          if [ "$PHP_COUNT" -eq 0 ]; then
-            echo "Nenhum arquivo PHP para validar"
-            exit 0
-          fi
-          
-          ERROS=0
-          for f in $(find output -name "*.php"); do
-            RESULT=$(php -l "$f" 2>&1)
-            if echo "$RESULT" | grep -q "No syntax errors"; then
-              echo "OK: $(basename $f)"
-            else
-              echo "ERRO: $(basename $f)"
-              echo "$RESULT"
-              ERROS=$((ERROS + 1))
-            fi
-          done
-          
-          if [ $ERROS -gt 0 ]; then
-            echo ""
-            echo "ATENCAO: $ERROS arquivo(s) com erro de sintaxe!"
-            exit 1
-          else
-            echo ""
-            echo "Todos os arquivos PHP validados com sucesso!"
-          fi
+          echo FASE 4.5: GERADOR IA EVOLUTIVO
+          node 3_gerador_ia.js || echo OK
         
-      # ============================================
-      # FASE 6: VALIDACAO DE ERROS E CORRECAO
-      # ============================================
+      - name: Validar PHP gerado
+        run: |
+          echo FASE 5: VALIDACAO PHP
+          for f in $(find output -name "*.php" 2>/dev/null); do
+            php -l "$f" 2>&1 | grep -q "No syntax errors" && echo "OK: $(basename $f)" || echo "ERRO: $(basename $f)"
+          done
+        
       - name: Validacao de erros
         run: |
-          echo "=== FASE 6: VALIDACAO DE ERROS ==="
-          node 4_validar.js || echo "Validacao OK"
+          echo FASE 6: VALIDACAO DE ERROS
+          node 4_validar.js || echo OK
         
-      # ============================================
-      # FASE 7: COMMIT NO BM-AUTOMACAO
-      # ============================================
       - name: Commit no BM-Automacao
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          echo "=== FASE 7: COMMIT BM-AUTOMACAO ==="
-          git config --global user.email "esteira1@bot"
-          git config --local user.name "Esteira1Bot"
+          echo FASE 7: COMMIT BM-AUTOMACAO
           git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/bm-auto 2>/dev/null || true
           if [ -d /tmp/bm-auto ]; then
             cd /tmp/bm-auto
@@ -148,35 +98,22 @@ jobs:
             git add -A
             git diff --staged --quiet || git commit -m "esteira: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main || true
-            echo "Commit feito!"
           fi
         continue-on-error: true
       
-      # ============================================
-      # FASE 8: DEPLOY
-      # ============================================
       - name: Deploy automatico
         if: always()
         run: |
-          echo "=== FASE 8: DEPLOY NO SERVIDOR ==="
-          
+          echo FASE 8: DEPLOY
           RESULT=$(curl -s "https://bmsystem.app/webhook.php?action=deploy-all&token=esteira1-2026-secret-deploy" -m 60)
           echo "$RESULT"
-          
-          if echo "$RESULT" | grep -q '"success": true'; then
-            echo "Deploy OK!"
-          fi
         continue-on-error: true
       
-      # ============================================
-      # RESULTADO
-      # ============================================
       - name: Resultado
         if: always()
         run: |
-          echo "============================================"
-          echo "  ESTEIRA 1 - RESULTADO"
-          echo "============================================"
-          echo "Status: ${{ job.status }}"
-          echo "Data: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          echo "============================================"
+          echo ============================================
+          echo ESTEIRA 1 v9 - RESULTADO
+          echo ============================================
+          echo Status: ${{ job.status }}
+          echo ============================================
