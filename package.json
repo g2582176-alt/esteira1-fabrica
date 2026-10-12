@@ -1,6 +1,6 @@
 {
   "name": "esteira1-fabrica",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Fabrica de Software automatizada - CI/CD para geracao de modulos SST",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,9 @@
     "tendencias": "node 2_pesquisador_tendencias.js",
     "scraper": "node 2_web_scraper.js",
     "generate": "node 3_programador.js",
-    "all": "npm run start && npm run tendencias && npm run scraper && npm run generate"
+    "validate": "node 4_validar.js",
+    "completar": "node 5_completar.js",
+    "all": "npm run start && npm run tendencias && npm run completar && npm run generate && npm run validate"
   },
   "keywords": ["ci", "cd", "automation", "sst", "factory"],
   "author": "Esteira1 Bot",
