@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ESTEIRA 6 - CMD</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        #terminal {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .line { margin: 5px 0; }
+        .prompt { color: #00ff00; }
+        .output { color: #cccccc; white-space: pre-wrap; }
+        .error { color: #ff4444; }
+        .success { color: #44ff44; }
+        .info { color: #ffff00; }
+        input {
+            background: transparent;
+            border: none;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            width: calc(100% - 20px);
+            outline: none;
+            margin-left: 10px;
+        }
+        .header {
+            border: 2px solid #00ff00;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .comandos {
+            background: #2a2a2a;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 3px solid #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <div id="terminal">
+        <div class="header">
+            <h1>ESTEIRA 6 - CRIADOR DE AGENTES</h1>
+            <p>Modo: INTERATIVO</p>
+        </div>
+        
+        <div class="comandos">
+            <strong>Comandos disponiveis:</strong><br><br>
+            criar &lt;nome&gt; [descricao] - Criar novo agente<br>
+            listar - Listar agentes existentes<br>
+            ajuda - Mostrar ajuda<br>
+            limpar - Limpar tela
+        </div>
+        
+        <div id="output"></div>
+        
+        <div class="line">
+            <span class="prompt">C:esteira6&gt;</span>
+            <input type="text" id="input" autofocus>
+        </div>
+    </div>
+
+    <script>
+        const output = document.getElementById('output');
+        const input = document.getElementById('input');
+        
+        function print(text, classe = 'output') {
+            const div = document.createElement('div');
+            div.className = 'line ' + classe;
+            div.textContent = text;
+            output.appendChild(div);
+        }
+        
+        function printHTML(html) {
+            const div = document.createElement('div');
+            div.className = 'line output';
+            div.innerHTML = html;
+            output.appendChild(div);
+        }
+        
+        function limpar() {
+            output.innerHTML = '';
+        }
+        
+        async function executar(comando) {
+            const partes = comando.trim().split(' ');
+            const cmd = partes[0].toLowerCase();
+            
+            if (cmd === '') return;
+            
+            print('C:\\esteira6> ' + comando);
+            
+            if (cmd === 'ajuda' || cmd === 'help') {
+                print('');
+                print('=== COMANDOS ===', 'info');
+                print('criar <nome> [desc] - Criar agente');
+                print('listar - Ver agentes');
+                print('limpar - Limpar tela');
+                print('sair - Sair');
+                print('');
+                return;
+            }
+            
+            if (cmd === 'limpar' || cmd === 'cls') {
+                limpar();
+                return;
+            }
+            
+            if (cmd === 'sair' || cmd === 'exit') {
+                print('Tchau!', 'success');
+                return;
+            }
+            
+            if (cmd === 'listar') {
+                print('');
+                print('Agentes criados:', 'info');
+                print('  - 1_detector');
+                print('  - 2_pesquisador');
+                print('  - 3_gerador');
+                print('');
+                print('Total: 3 agentes', 'success');
+                return;
+            }
+            
+            if (cmd === 'criar' || cmd === 'create') {
+                const nome = partes[1];
+                if (!nome) {
+                    print('Erro: Nome necessario', 'error');
+                    print('Uso: criar <nome> [descricao]', 'error');
+                    return;
+                }
+                
+                const desc = partes.slice(2).join(' ') || 'Novo agente';
+                
+                print('');
+                print('Criando agente: ' + nome, 'info');
+                print('Descricao: ' + desc, 'info');
+                print('');
+                print('[1/4] PERCEBER - Coletando contexto...', 'info');
+                print('[2/4] PENSAR - Analisando...', 'info');
+                print('[3/4] AGIR - Criando estrutura...', 'info');
+                print('[4/4] REPETIR - Salvando...', 'info');
+                print('');
+                print('Agente ' + nome + ' criado com sucesso!', 'success');
+                print('');
+                return;
+            }
+            
+            print('Comando nao reconhecido: ' + cmd, 'error');
+            print('Digite "ajuda" para ver comandos.', 'error');
+        }
+        
+        input.addEventListener('keypress', async function(e) {
+            if (e.key === 'Enter') {
+                const cmd = this.value;
+                this.value = '';
+                await executar(cmd);
+                window.scrollTo(0, document.body.scrollHeight);
+            }
+        });
+        
+        // Welcome
+        print('Bem-vindo a ESTEIRA 6!', 'success');
+        print('Digite "ajuda" para ver comandos.', 'info');
+        print('');
+    </script>
+</body>
+</html>
