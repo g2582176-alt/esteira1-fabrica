@@ -1,0 +1,19 @@
+{
+  "sistema": "BMSystem - Gestao de SST",
+  "versao": "1.0",
+  "esteira": "6 - Criador de Agentes",
+  "Created": "2026-10-17",
+  "modelo": "Anthropic AI Agent",
+  "componentes": [
+    "AGENTS.md - Contexto",
+    "MEMORY.md - Memoria",
+    "Loop PADRAO - Perceber->Pensar->Agir->Repetir",
+    "Skills - Ferramentas reutilizaveis",
+    "MCP - Integracao"
+  ],
+  "objetivos": [
+    "Criar agentes automaticamente",
+    "Manter aprendizado acumulado",
+    "Usar IA para decisoes"
+  ]
+}
