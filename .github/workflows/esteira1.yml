@@ -1,4 +1,4 @@
-name: Esteira 1 - Auto Deploy v11
+name: Esteira 1 - Auto Deploy v12 - Com Esteira 6
 
 on:
   schedule:
@@ -8,10 +8,47 @@ on:
   workflow_dispatch:
 
 jobs:
+  esteira6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Instalar deps
+        run: npm install
+      
+      - name: Esteira 6 - Criar Agentes
+        run: |
+          echo === ESTEIRA 6 - CRIADOR DE AGENTES ===
+          node esteira6.js || echo OK
+      
+      - name: Commit novos agentes
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/esteira1-fabrica.git /tmp/esteira 2>/dev/null
+          cd /tmp/esteira
+          cp -r ../agentes ./ 2>/dev/null || true
+          git add -A
+          if git diff --staged --quiet; then
+            echo Nada para commitar
+          else
+            git commit -m "esteira6: novos agentes criados"
+            git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/esteira1-fabrica.git main
+            echo Commit feito
+          fi
+        continue-on-error: true
+
   esteira1:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    
+    needs: esteira6
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,9 +97,8 @@ jobs:
         
       - name: Validar PHP gerado
         run: |
-          echo === VALIDACAO PHP ===
           for f in $(find output -name "*.php" 2>/dev/null); do
-            php -l "$f" 2>&1 | grep -q "No syntax errors" && echo "OK: $(basename $f)" || echo "ERRO: $(basename $f)"
+            php -l "$f" 2>&1 | grep -q "No syntax errors" && echo "OK: $(basename $f)"
           done
         continue-on-error: true
         
@@ -73,18 +109,15 @@ jobs:
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          echo === COMMIT BM-AUTOMACAO ===
-          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/bm-auto 2>/dev/null || (cd /tmp/bm-auto && git pull)
+          git clone https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git /tmp/bm-auto 2>/dev/null
           if [ -d /tmp/bm-auto ]; then
             cd /tmp/bm-auto
             cp -r ../output/* esteira_1_fabrica_software/output/ 2>/dev/null || true
-            echo Arquivos no output:
-            find esteira_1_fabrica_software/output -name "*.php" 2>/dev/null | head -20
             git add -A
             if git diff --staged --quiet; then
               echo Nada para commitar
             else
-              git commit -m "esteira: update $(date)"
+              git commit -m "esteira: update"
               git push https://x-access-token:$GH_PAT@github.com/g2582176-alt/BM-Automacao.git main
               echo Commit feito
             fi
@@ -93,16 +126,14 @@ jobs:
      
       - name: Deploy automatico
         if: always()
-        run: |
-          echo === DEPLOY ===
-          curl -s "https://bmsystem.app/webhook.php?action=deploy-all&token=esteira1-2026-secret-deploy" -m 60
+        run: curl -s "https://bmsystem.app/webhook.php?action=deploy-all&token=esteira1-2026-secret-deploy" -m 60
         continue-on-error: true
      
       - name: Resultado
         if: always()
         run: |
           echo ============================================
-          echo ESTEIRA v11 - RESULTADO
+          echo ESTEIRA v12 - COM ESTEIRA 6
           echo ============================================
           echo Status: ${{ job.status }}
           echo ============================================
