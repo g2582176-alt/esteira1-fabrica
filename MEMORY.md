@@ -1,18 +1,21 @@
-# MEMORY.md - Historico de Agentes Criados
+MEMORY.md - Esteira 6
 
-## Historico
+## IDENTIDADE
+- Nome: Esteira 6
+- Versao: 1.0
+- Criado: 2026-10-17
 
+## EXECUCOES
 ### 2026-10-17 - Inicio
-- Esteira 6 criada
-- Ainda nao criou nenhum agente
+- Status: Primeira execucao
+- Agentes criados: 0
 
-## Agentes Criados
+## SKILLS
+| Skill | Funcao |
+|-------|--------|
+| criar_estrutura | Cria pastas |
+| gerar_agents_md | Gera contexto |
+| gerar_memory_md | Gera memoria |
 
-| Data | Agente | Status | Observacoes |
-|------|--------|--------|-------------|
-| - | - | - | Nenhum criado ainda |
-
-## Proximos Agentes a Criar
-- 1_detector
-- 2_pesquisador
-- 3_gerador
+## PROXIMOS
+- Executar primeira geracao
